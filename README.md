@@ -1,7 +1,6 @@
 # qwen-api
 
 [![PyPI version](https://badge.fury.io/py/qwen-api.svg)](https://pypi.org/project/qwen-api/)
-[![License](https://img.shields.io/github/license/yourusername/qwen-api)](LICENSE)
 
 Unofficial Python SDK for accessing [Qwen AI](https://chat.qwen.ai) API.
 
