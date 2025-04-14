@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=65.5.1", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qwen-api"
+version = "0.0.1"
+authors = [
+  { name="Ahmad Rosyihuddin", email="rosyihuddin.dev@gmail.com" },
+]
+description = "Unofficial Qwen API Client"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+keywords = ["qwen", "ai", "llm", "qwen-api"]
+
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Build Tools",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+
+]
+
+dependencies = [
+    "requests>=2.32.3",
+    "python-dotenv>=1.1.0",
+    "sseclient-py>=1.8.0",
+    "pydantic>=2.11.3",
+    "pydantic-settings>=2.8.1",
+    "aiohttp>=3.11.16",
+    "colorama>=0.4.6"
+]
+
+[project.urls]
+Homepage = "https://github.com/arosyihuddin/qwen-api"
+Documentation = "https://github.com/arosyihuddin/qwen-api"
+Repository = "https://github.com/arosyihuddin/qwen-api"
+Issues = "https://github.com/arosyihuddin/qwen-api"
+
+[project.optional-dependencies]
+dev = ["pytest", "black", "mypy"]
