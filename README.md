@@ -70,12 +70,49 @@ for chunk in client.chat.create(messages=messages, model="qwen-max-latest", stre
 
 ## ⚙️ Environment Setup
 
-Make sure you have a `.env` file in your root directory with:
+To use `qwen-api`, you need to obtain your `AUTH TOKEN` and `COOKIE` from [https://chat.qwen.ai](https://chat.qwen.ai). Follow these steps:
 
-```env
-QWEN_AUTH_TOKEN=your_api_token
-QWEN_COOKIE=your_cookie_value
-```
+1. **Sign Up or Log In**  
+   Visit [https://chat.qwen.ai](https://chat.qwen.ai) and sign up or log in to your account.
+
+2. **Open Developer Tools**
+
+   - Right-click anywhere on the page and select `Inspect`, or
+   - Use the shortcut: `Ctrl+Shift+I` (Windows/Linux) or `Cmd+Option+I` (Mac)
+   - Navigate to the `Network` tab
+
+3. **Send a Message**  
+   Go back to [https://chat.qwen.ai](https://chat.qwen.ai) and send a message in the chat.
+
+4. **Find the `completions` Request**  
+   In the `Network` tab, filter by `Fetch/XHR` and locate a request named `completions`.
+
+5. **Copy the Authorization Token and Cookie**
+
+   - Click the `completions` request and go to the `Headers` tab.
+   - Look for the `Authorization` header that starts with `Bearer`, and copy **only the token part** (without the word "Bearer").  
+     Example:
+     ```
+     Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+     ```
+   - Scroll down and find the `Cookie` header. Copy the entire value.  
+     Example (partial):
+     ```
+     Cookie: cna=lyp6INOXADYCAbb9MozTsTcp; cnaui=83a0f88d-86d8-...; token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+     ```
+
+6. **Save in `.env` File**  
+   Create a `.env` file in the root directory of your project and paste the following:
+
+   ```env
+   QWEN_AUTH_TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...  # no "Bearer"
+   QWEN_COOKIE="cna=lyp6INOXADYCA...; cnaui=83a0f88d-86d8-...; token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+   ```
+
+⚠️ **Note**:
+
+- Never share your token or cookie publicly.
+- Tokens and cookies may expire. If authentication fails, repeat the steps above to obtain a new one.
 
 ---
 
