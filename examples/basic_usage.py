@@ -1,15 +1,20 @@
 from qwen_api import Qwen
 from qwen_api.core.exceptions import QwenAPIError
-
+from qwen_api.types.chat import ChatMessage
 
 def main():
     # Inisialisasi client
     client = Qwen()
 
     try:
+        messages = [ChatMessage(
+            role="user", 
+            content="Apa itu LLM?",
+            web_search=True,
+            thinking=False,
+        )]
         response = client.chat.create(
-            messages=[
-                {"role": "user", "content": "siapa presiden indonesia saat ini?"}],
+            messages=messages,
             model="qwen-max-latest",
         )
 

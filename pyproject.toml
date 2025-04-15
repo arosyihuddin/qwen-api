@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "qwen-api"
-version = "1.0.0"
+version = "1.0.1"
 authors = [
   { name="Ahmad Rosyihuddin", email="rosyihuddin.dev@gmail.com" },
 ]
@@ -19,9 +19,8 @@ classifiers = [
     "Intended Audience :: Developers",
     "Topic :: Software Development :: Build Tools",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 
@@ -41,7 +40,7 @@ dependencies = [
 Homepage = "https://github.com/arosyihuddin/qwen-api"
 Documentation = "https://github.com/arosyihuddin/qwen-api"
 Repository = "https://github.com/arosyihuddin/qwen-api"
-Issues = "https://github.com/arosyihuddin/qwen-api"
+Issues = "https://github.com/arosyihuddin/qwen-api/issues"
 
 [project.optional-dependencies]
 dev = ["pytest", "black", "mypy"]

@@ -52,7 +52,7 @@ def setup_logger(logging_level: logging_level, save_logs: bool) -> logging.Logge
 
     logger.setLevel(get_logging_level(logging_level))
 
-    base_format = "%(asctime)s - %(name)s - [%(levelname)s] - %(message)s"
+    base_format = "[%(levelname)s] %(asctime)s - %(name)s -> %(message)s"
 
     # Handler untuk console
     console_handler = logging.StreamHandler()
