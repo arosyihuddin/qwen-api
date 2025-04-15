@@ -2,11 +2,10 @@ from qwen_api import Qwen
 from qwen_api.core.exceptions import QwenAPIError
 
 def main():
-    client = Qwen(timeout=0.1)  # Timeout sangat pendek untuk testing
+    client = Qwen(timeout=0.1) 
     
     try:
-        # Request yang akan timeout
-        response = client.send_message("Jelaskan black hole")
+        response = client.send_message("what is LLM")
         print(response)
         
     except QwenAPIError as e:
