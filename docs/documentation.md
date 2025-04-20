@@ -1,8 +1,3 @@
-Below is the complete documentation in Markdown format (`.md`).
-
----
-
-````markdown
 # Qwen API Python SDK Documentation
 
 This documentation provides a guide for using the `Qwen API` Python SDK. The SDK includes classes and methods to interact with the Qwen service for sending messages, receiving responses, and handling synchronous or asynchronous interactions.
@@ -31,6 +26,7 @@ The `Qwen` class is designed to handle API calls to the Qwen service, including 
 ```python
 def __init__(self, api_key: Optional[str] = None, cookie: Optional[str] = None, timeout: int = 30, logging_level: str = "INFO", save_logs: bool = False)
 ```
+
 ````
 
 #### Parameters:
@@ -229,7 +225,4 @@ pip install qwen_api
 ---
 
 This documentation should guide you through using the provided Python classes for interacting with the Qwen API. Let me know if you need any further clarification or additional examples!
-
-```
-
-```
+````
