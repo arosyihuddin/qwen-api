@@ -45,10 +45,6 @@ Unofficial Python SDK for accessing [Qwen AI](https://chat.qwen.ai) API.
 pip install qwen-api
 ```
 
-````
-
----
-
 ## 🚀 Usage
 
 ### Basic Usage
@@ -223,4 +219,3 @@ Contributions, issues, and feature requests are welcome!
 3. Commit your changes (`git commit -am 'Add new feature'`)
 4. Push to the branch (`git push origin feature/feature-name`)
 5. Open a Pull Request
-````

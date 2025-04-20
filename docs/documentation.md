@@ -27,8 +27,6 @@ The `Qwen` class is designed to handle API calls to the Qwen service, including 
 def __init__(self, api_key: Optional[str] = None, cookie: Optional[str] = None, timeout: int = 30, logging_level: str = "INFO", save_logs: bool = False)
 ```
 
-````
-
 #### Parameters:
 
 - `api_key` (Optional): Your API key for authentication.
@@ -225,4 +223,3 @@ pip install qwen_api
 ---
 
 This documentation should guide you through using the provided Python classes for interacting with the Qwen API. Let me know if you need any further clarification or additional examples!
-````
