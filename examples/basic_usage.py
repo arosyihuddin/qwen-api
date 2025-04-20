@@ -3,13 +3,12 @@ from qwen_api.core.exceptions import QwenAPIError
 from qwen_api.types.chat import ChatMessage
 
 def main():
-    # Inisialisasi client
     client = Qwen()
 
     try:
         messages = [ChatMessage(
             role="user", 
-            content="what is LLM?",
+            content="Apa ibu kota Indonesia?",
             web_search=True,
             thinking=False,
         )]

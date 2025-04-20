@@ -23,7 +23,6 @@ class Completion:
         payload = self._client._build_payload(
             messages=messages,
             model=model,
-            stream=stream,
             temperature=temperature,
             max_tokens=max_tokens
         )
@@ -66,7 +65,6 @@ class Completion:
         payload = self._client._build_payload(
             messages=messages,
             model=model,
-            stream=stream,
             temperature=temperature,
             max_tokens=max_tokens
         )
@@ -96,8 +94,5 @@ class Completion:
 
         try:
             return await self._client._process_aresponse(response, session)
-            data = (await response.json()).get("choices", [])
-            print(data)
-            return ChatResponse(choices=data)
         finally:
             await session.close()

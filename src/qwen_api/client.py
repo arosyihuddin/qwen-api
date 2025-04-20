@@ -38,7 +38,6 @@ class Qwen:
         messages: List[ChatMessage],
         temperature: float,
         model: str,
-        stream: bool,
         max_tokens: Optional[int] 
     ) -> dict:
         validated_messages = []
@@ -58,8 +57,8 @@ class Qwen:
             "messages": [{
                 "role": msg.role,
                 "content": msg.content,
-                "chat_type": msg.web_search,
-                "feature_config": {"thinking_enabled": msg.thinking},
+                "chat_type": "search" if getattr(msg, "web_search", False) else "t2t",
+                "feature_config": {"thinking_enabled": getattr(msg, "thinking", False)},
                 "extra": {}
             } for msg in validated_messages],
             "temperature": temperature,

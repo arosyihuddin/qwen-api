@@ -1,6 +1,20 @@
 from typing import List, Dict, Optional
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, Field, ConfigDict
 from typing_extensions import Literal
+from llama_index.core.base.llms.types import ChatMessage as OriginalChatMessage
+from enum import Enum
+
+class MessageRole(str, Enum):
+    """Message role."""
+
+    SYSTEM = "system"
+    DEVELOPER = "developer"
+    USER = "user"
+    ASSISTANT = "assistant"
+    FUNCTION = "function"
+    TOOL = "tool"
+    CHATBOT = "chatbot"
+    MODEL = "model"
 
 class FunctionCall(BaseModel):
     name: str
@@ -41,12 +55,25 @@ class Choice(BaseModel):
 class ChatResponse(BaseModel):
     choices: Choice
 
-class ChatMessage(BaseModel):
-    role: Literal["user", "assistant", "system"]
-    content: str
-    web_search: bool = False
-    thinking: bool = False
-    
-    @field_validator("web_search")
-    def validate_web_search(cls, v):
-        return "search" if v else "t2t"  
+class ChatMessage(OriginalChatMessage):
+    web_search: bool = Field(
+        default=False,
+        description="Flag untuk mengaktifkan web search",
+        json_schema_extra={"example": False}
+    )
+    thinking: bool = Field(
+        default=False,
+        description="Flag untuk mengaktifkan thinking mode",
+        json_schema_extra={"example": False}
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "role": "user",
+                "content": "Apa itu RAG?",
+                "web_search": True,
+                "thinking": False
+            }
+        }
+    )

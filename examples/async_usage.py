@@ -10,7 +10,7 @@ async def main():
     try:
         messages = [ChatMessage(
             role="user", 
-            content="what is LLM?",
+            content="Apa ibu kota Indonesia?",
             web_search=True,
             thinking=False,
         )]
