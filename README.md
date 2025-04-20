@@ -1,6 +1,3 @@
-Here is the updated `README.md` with the documentation path added:
-
-````markdown
 # qwen-api
 
 [![PyPI version](https://badge.fury.io/py/qwen-api.svg)](https://pypi.org/project/qwen-api/)
@@ -47,6 +44,7 @@ Unofficial Python SDK for accessing [Qwen AI](https://chat.qwen.ai) API.
 ```bash
 pip install qwen-api
 ```
+
 ````
 
 ---
@@ -154,7 +152,7 @@ For complete documentation, visit the [documentation file](docs/documentation.md
 
 To use `qwen-api`, you need to obtain your `AUTH TOKEN` and `COOKIE` from [https://chat.qwen.ai](https://chat.qwen.ai). Follow these steps:
 
-1. **Sign Up or Log In**  
+1. **Sign Up or Log In**
    Visit [https://chat.qwen.ai](https://chat.qwen.ai) and sign up or log in to your account.
 
 2. **Open Developer Tools**
@@ -163,27 +161,27 @@ To use `qwen-api`, you need to obtain your `AUTH TOKEN` and `COOKIE` from [https
    - Use the shortcut: `Ctrl+Shift+I` (Windows/Linux) or `Cmd+Option+I` (Mac)
    - Navigate to the `Network` tab
 
-3. **Send a Message**  
+3. **Send a Message**
    Go back to [https://chat.qwen.ai](https://chat.qwen.ai) and send a message in the chat.
 
-4. **Find the `completions` Request**  
+4. **Find the `completions` Request**
    In the `Network` tab, filter by `Fetch/XHR` and locate a request named `completions`.
 
 5. **Copy the Authorization Token and Cookie**
 
    - Click the `completions` request and go to the `Headers` tab.
-   - Look for the `Authorization` header that starts with `Bearer`, and copy **only the token part** (without the word "Bearer").  
+   - Look for the `Authorization` header that starts with `Bearer`, and copy **only the token part** (without the word "Bearer").
      Example:
      ```
      Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
      ```
-   - Scroll down and find the `Cookie` header. Copy the entire value.  
+   - Scroll down and find the `Cookie` header. Copy the entire value.
      Example (partial):
      ```
      Cookie: cna=lyp6INOXADYCAbb9MozTsTcp; cnaui=83a0f88d-86d8-...; token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
      ```
 
-6. **Save in `.env` File**  
+6. **Save in `.env` File**
    Create a `.env` file in the root directory of your project and paste the following:
 
    ```env
@@ -225,7 +223,4 @@ Contributions, issues, and feature requests are welcome!
 3. Commit your changes (`git commit -am 'Add new feature'`)
 4. Push to the branch (`git push origin feature/feature-name`)
 5. Open a Pull Request
-
-```
-
-```
+````
