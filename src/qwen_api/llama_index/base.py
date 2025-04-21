@@ -23,6 +23,7 @@ logging = setup_logger("INFO", False)
 DEFAULT_API_BASE = "https://chat.qwen.ai/api/chat/completions"
 DEFAULT_MODEL = "qwen-max-latest"
 
+
 class QwenLlamaIndex(LLM):
     cookie: Optional[str] = Field(
         default=None,
@@ -51,9 +52,10 @@ class QwenLlamaIndex(LLM):
         max_tokens: Optional[int] = 1500,
         **kwargs: Any,
     ):
-        auth_token = get_from_param_or_env("auth_token", auth_token, "QWEN_AUTH_TOKEN")
+        auth_token = get_from_param_or_env(
+            "auth_token", auth_token, "QWEN_AUTH_TOKEN")
         cookie = get_from_param_or_env("cookie", cookie, "QWEN_COOKIE")
-        
+
         super().__init__(
             model=model,
             temperature=temperature,
@@ -84,7 +86,7 @@ class QwenLlamaIndex(LLM):
             "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36",
             "Content-Type": "application/json"
         }
-        
+
         return headers
 
     def _get_request_payload(self, messages: list[ChatMessage], **kwargs: Any) -> Dict[str, Any]:
@@ -103,7 +105,7 @@ class QwenLlamaIndex(LLM):
             "stream": True,
             "incremental_output": True
         }
-    
+
     def _process_response(self, response: requests.Response) -> ChatResponse:
         client = SSEClient(response)
         message = {}
@@ -113,35 +115,38 @@ class QwenLlamaIndex(LLM):
                 try:
                     data = json.loads(event.data)
                     if data["choices"][0]["delta"].get("role") == "function":
-                        message["extra"] = (data["choices"][0]["delta"].get("extra"))
+                        message["extra"] = (
+                            data["choices"][0]["delta"].get("extra"))
                     text += data["choices"][0]["delta"].get("content")
                 except json.JSONDecodeError:
                     continue
-        message["message"] = {"role": "assistant","content": text}
+        message["message"] = {"role": "assistant", "content": text}
         return ChatResponse(message=ChatMessage(role="assistant", content=text), raw=data)
 
     def _process_stream_response(self, response: requests.Response) -> Generator[ChatResponse, None, None]:
         client = SSEClient(response)
+        content = ""
         for event in client.events():
             if event.data:
                 try:
                     data = json.loads(event.data)
                     delta = data["choices"][0]["delta"]
+                    content += delta.get("content")
                     chat_response = ChatResponse(
                         message=ChatMessage(
                             role=delta.get("role"),
-                            content=delta.get("content")
+                            content=content
                         ),
                         delta=delta.get("content"),
                         raw=data
                     )
                     yield chat_response
-                    
+
                 except json.JSONDecodeError:
                     continue
                 except KeyError:
                     continue
-    
+
     async def _process_aresponse(self, response: aiohttp.ClientResponse, session: aiohttp.ClientSession) -> ChatResponse:
         try:
             message = {}
@@ -151,11 +156,13 @@ class QwenLlamaIndex(LLM):
                     try:
                         data = json.loads(line[5:].decode())
                         if data["choices"][0]["delta"].get("role") == "function":
-                            message["extra"] = (data["choices"][0]["delta"].get("extra"))
+                            message["extra"] = (
+                                data["choices"][0]["delta"].get("extra"))
                         text += data["choices"][0]["delta"].get("content")
                     except json.JSONDecodeError:
                         continue
-            message["message"] = {"role": MessageRole.ASSISTANT,"content": text}
+            message["message"] = {
+                "role": MessageRole.ASSISTANT, "content": text}
             return ChatResponse(message=ChatMessage(role=MessageRole.ASSISTANT, content=text), raw=data)
         except aiohttp.ClientError as e:
             self.logger.error(f"Client error: {e}")
@@ -163,20 +170,22 @@ class QwenLlamaIndex(LLM):
             await session.close()
 
     async def _process_astream(self, response: aiohttp.ClientResponse, session: aiohttp.ClientSession) -> AsyncGenerator[ChatResponse, None]:
+        content = ""
         try:
             async for line in response.content:
                 if line.startswith(b'data:'):
                     try:
                         data = json.loads(line[5:].decode())
                         delta = data["choices"][0]["delta"]
+                        content += delta.get("content")
                         yield ChatResponse(
-                        message=ChatMessage(
-                            role=delta.get("role"),
-                            content=delta.get("content")
-                        ),
-                        delta=delta.get("content"),
-                        raw=data
-                    )
+                            message=ChatMessage(
+                                role=delta.get("role"),
+                                content=content
+                            ),
+                            delta=delta.get("content"),
+                            raw=data
+                        )
                     except json.JSONDecodeError:
                         continue
         except aiohttp.ClientError as e:
@@ -184,18 +193,17 @@ class QwenLlamaIndex(LLM):
         finally:
             await session.close()
 
-                
     @llm_completion_callback()
     def complete(self, prompt: str, **kwargs: Any) -> CompletionResponse:
         messages = [ChatMessage(role="user", content=prompt)]
         result = self.chat(messages=messages, **kwargs)
         return CompletionResponse(text=result.message.content, raw=result.raw)
-    
+
     @llm_completion_callback()
     def stream_complete(self, prompt: str, **kwargs) -> CompletionResponse:
         messages = [ChatMessage(role="user", content=prompt)]
         response_generator = self.stream_chat(messages=messages, **kwargs)
-        
+
         def gen() -> CompletionResponseGen:
             for chat_response in response_generator:
                 completion_response = CompletionResponse(
@@ -205,7 +213,7 @@ class QwenLlamaIndex(LLM):
                 )
                 yield completion_response
         return gen()
-    
+
     @llm_chat_callback()
     def chat(self, messages: Sequence[ChatMessage], **kwargs: Any) -> ChatResponse:
         payload = self._get_request_payload(messages, **kwargs)
@@ -217,7 +225,7 @@ class QwenLlamaIndex(LLM):
         )
         logging.info(f"Response: {response.status_code}")
         return self._process_response(response)
-        
+
     @llm_chat_callback()
     def stream_chat(self, messages: Sequence[ChatMessage], **kwargs) -> ChatResponse:
         payload = self._get_request_payload(messages, **kwargs)
@@ -227,7 +235,7 @@ class QwenLlamaIndex(LLM):
             json=payload,
             stream=True
         )
-        
+
         logging.info(f"Response: {response.status_code}")
         return self._process_stream_response(response)
 
@@ -236,12 +244,12 @@ class QwenLlamaIndex(LLM):
         messages = [ChatMessage(role="user", content=prompt)]
         result = await self.achat(messages=messages, **kwargs)
         return CompletionResponse(text=result.message.content, raw=result.raw)
-    
+
     @llm_completion_callback()
     async def astream_complete(self, prompt: str, **kwargs) -> CompletionResponse:
         messages = [ChatMessage(role="user", content=prompt)]
         response_generator = await self.astream_chat(messages=messages, **kwargs)
-        
+
         async def async_gen() -> CompletionResponseAsyncGen:
             async for chat_response in response_generator:
                 completion_response = CompletionResponse(
@@ -251,7 +259,7 @@ class QwenLlamaIndex(LLM):
                 )
                 yield completion_response
         return async_gen()
-    
+
     @llm_chat_callback()
     async def achat(self, messages: list[ChatMessage], **kwargs: Any) -> ChatResponse:
         payload = self._get_request_payload(messages, **kwargs)
@@ -261,9 +269,9 @@ class QwenLlamaIndex(LLM):
             headers=self._get_headers(),
             json=payload,
         )
-        
+
         logging.info(f"Response: {response.status}")
-        
+
         if not response.ok:
             error_text = await response.text()
             logging.error(
@@ -273,11 +281,11 @@ class QwenLlamaIndex(LLM):
         if response.status == 429:
             self._client.logger.error("Too many requests")
             raise RateLimitError("Too many requests")
-            
+
         return await self._process_aresponse(response, session)
-    
+
     @llm_chat_callback()
-    async def astream_chat(self, messages: Sequence[ChatMessage], **kwargs: Any) -> ChatResponse:
+    async def astream_chat(self, messages: Sequence[ChatMessage], **kwargs: Any) -> AsyncGenerator[ChatResponse, None]:
         payload = self._get_request_payload(messages, **kwargs)
         session = aiohttp.ClientSession()
         response = await session.post(
@@ -285,9 +293,10 @@ class QwenLlamaIndex(LLM):
             headers=self._get_headers(),
             json=payload
         )
-        
+        response.raise_for_status()
+
         logging.info(f"Response: {response.status}")
-        
+
         if not response.ok:
             error_text = await response.text()
             logging.error(
@@ -297,5 +306,5 @@ class QwenLlamaIndex(LLM):
         if response.status == 429:
             self._client.logger.error("Too many requests")
             raise RateLimitError("Too many requests")
-        
+
         return self._process_astream(response, session)
