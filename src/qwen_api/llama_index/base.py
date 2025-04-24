@@ -17,6 +17,7 @@ from qwen_api.types import ChatMessage, MessageRole
 from qwen_api.logger import setup_logger
 from qwen_api.core.exceptions import QwenAPIError, RateLimitError
 from llama_index.core.llms.llm import LLM
+from qwen_api.types.chat_model import ChatModel
 
 logging = setup_logger("INFO", False)
 
@@ -47,7 +48,7 @@ class QwenLlamaIndex(LLM):
         self,
         auth_token: Optional[str] = None,
         cookie: Optional[str] = None,
-        model: str = DEFAULT_MODEL,
+        model: ChatModel = DEFAULT_MODEL,
         temperature: float = 0.7,
         max_tokens: Optional[int] = 1500,
         **kwargs: Any,

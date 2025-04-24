@@ -35,17 +35,17 @@ class Completion:
             stream=stream
         )
 
-        self._client.logger.info(f"Response: {response.status_code}")
-
         if not response.ok:
-            error_text = response.text()
+            error_text = response.json()
             self._client.logger.error(
-                f"API Error: {response.status} {error_text}")
-            raise QwenAPIError(f"API Error: {response.status} {error_text}")
+                f"API Error: {response.status_code} {error_text}")
+            raise QwenAPIError(f"API Error: {response.status_code} {error_text}")
 
         if response.status_code == 429:
             self._client.logger.error("Too many requests")
             raise RateLimitError("Too many requests")
+        
+        self._client.logger.info(f"Response: {response.status_code}")
 
         if stream:
             return self._client._process_stream(response)
@@ -77,8 +77,6 @@ class Completion:
             timeout=aiohttp.ClientTimeout(total=120)
         )
 
-        self._client.logger.info(f"Response status: {response.status}")
-
         if not response.ok:
             error_text = await response.text()
             self._client.logger.error(
@@ -88,6 +86,8 @@ class Completion:
         if response.status == 429:
             self._client.logger.error("Too many requests")
             raise RateLimitError("Too many requests")
+        
+        self._client.logger.info(f"Response status: {response.status}")
 
         if stream:
             return self._client._process_astream(response, session)
