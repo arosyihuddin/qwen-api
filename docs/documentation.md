@@ -2,6 +2,264 @@
 
 This documentation provides a guide for using the `Qwen API` Python SDK. The SDK includes classes and methods to interact with the Qwen service for sending messages, receiving responses, and handling synchronous or asynchronous interactions.
 
+## Getting Started
+
+### Installation
+
+To install the Qwen API Python SDK, use pip:
+
+```bash
+pip install qwen-api
+```
+
+### Setup and Authentication
+
+Before using the library, you need to set up your authentication credentials. You can do this by either:
+
+1. Creating a `.env` file in your project root with the following variables:
+
+```python
+QWEN_AUTH_TOKEN=eyJhbGcxxxxx
+QWEN_COOKIE="cna=lypxxxx; _bl_uid=atmxxx; cnaui=83axxx; aui=83a0xx; sca=9faxxx; token=eyJhbxxx; acw_tc=0a03exxx;..."
+```
+
+2. Or setting them directly in your code:
+
+```python
+from qwen_api.client import Qwen
+
+client = Qwen()
+```
+
+## Basic Usage Patterns
+
+### Synchronous Usage
+
+Here's an example of basic synchronous usage:
+
+```python
+from qwen_api.client import Qwen
+
+# Create a client instance
+client = Qwen()
+
+# Make a basic completion request
+response = client.completion.create(
+    model="qwen-max",
+    prompt="Hello, how can I help you today?"
+)
+
+# Print the response
+print(response.choices[0].text)
+```
+
+### Asynchronous Usage
+
+For asynchronous operations, you can use the async methods:
+
+```python
+import asyncio
+from qwen_api.client import Qwen
+
+async def main():
+    # Create an async client instance
+    client = Qwen()
+
+    # Make an async completion request
+    response = await client.completion.acreate(
+        model="qwen-max",
+        prompt="Hello, how can I help you today?"
+    )
+
+    # Print the response
+    print(response.choices[0].text)
+
+# Run the async function
+asyncio.run(main())
+```
+
+### Streaming Implementation
+
+Streaming allows you to process the response as it's being generated:
+
+```python
+from qwen_api.client import Qwen
+
+client = Qwen()
+
+# Create a streaming completion
+stream = client.completion.create(
+    model="qwen-max",
+    prompt="Write a long story about a magical forest",
+    stream=True
+)
+
+# Process the stream
+for chunk in stream:
+    print(chunk.choices[0].delta.content, end="", flush=True)
+```
+
+### Non-Streaming Implementation
+
+Non-streaming waits for the complete response before returning:
+
+```python
+from qwen_api.client import Qwen
+
+client = Qwen()
+
+# Create a non-streaming completion
+response = client.completion.create(
+    model="qwen-max",
+    prompt="Write a short poem about springtime"
+)
+
+# Process the complete response
+print(response.choices[0].text)
+```
+
+### Error Handling
+
+The SDK provides comprehensive error handling capabilities through custom exceptions defined in `qwen_api.core.exceptions`. Here's how to handle errors effectively:
+
+**Basic Error Handling**
+
+```python
+from qwen_api.client import Qwen
+from qwen_api.core.exceptions import QwenAPIError
+
+try:
+    client = Qwen()
+    response = client.completion.create(
+        model="qwen-max",
+        prompt="This is a test request"
+    )
+except QwenAPIError as e:
+    print(f"An API error occurred: {e}")
+    print(f"Status code: {e.status_code}")
+    print(f"Response body: {e.body}")
+except Exception as e:
+    print(f"An unexpected error occurred: {e}")
+```
+
+**Retry Logic with Exponential Backoff**
+
+```python
+import time
+from qwen_api.client import Qwen
+from qwen_api.core.exceptions import QwenAPIError
+
+MAX_RETRIES = 3
+INITIAL_RETRY_DELAY = 1
+
+for attempt in range(MAX_RETRIES):
+    try:
+        client = Qwen()
+        response = client.completion.create(
+            model="qwen-max",
+            prompt="This is a test request"
+        )
+        break  # Success, exit retry loop
+    except QwenAPIError as e:
+        if attempt < MAX_RETRIES - 1:
+            retry_delay = INITIAL_RETRY_DELAY * (attempt + 1)
+            print(f"Attempt {attempt + 1} failed. Retrying in {retry_delay} seconds...")
+            time.sleep(retry_delay)
+        else:
+            print(f"All attempts failed. Final error: {e}")
+```
+
+**Rate Limit Handling**
+
+```python
+import time
+from qwen_api.client import Qwen
+from qwen_api.core.exceptions import QwenAPIError
+
+for attempt in range(MAX_RETRIES):
+    try:
+        client = Qwen()
+        response = client.completion.create(
+            model="qwen-max",
+            prompt="This is a test request"
+        )
+        break
+    except QwenAPIError as e:
+        if e.status_code == 429:  # Rate limit exceeded
+            retry_after = getattr(e, 'retry_after', INITIAL_RETRY_DELAY * (attempt + 1))
+            print(f"Rate limit exceeded. Retrying after {retry_after} seconds...")
+            time.sleep(retry_after)
+        elif attempt < MAX_RETRIES - 1:
+            print(f"Attempt {attempt + 1} failed. Retrying...")
+            time.sleep(INITIAL_RETRY_DELAY * (attempt + 1))
+        else:
+            print(f"Final error: {e}")
+```
+
+### File Upload Tutorial
+
+The Qwen API also supports file uploads, including image files. Here's an example from the basic_usage_stream.py file:
+
+```python
+from qwen_api import Qwen
+from qwen_api.core.exceptions import QwenAPIError
+from qwen_api.core.types.chat import ChatMessage, TextBlock, ImageBlock
+
+
+def main():
+    client = Qwen(logging_level="DEBUG")
+
+    try:
+        getUrl = client.chat.upload_file(
+            file_path="/home/pstar7/Documents/Personal/Open Source Project/qwen-api/examples/tes_image.png"
+        )
+        messages = [ChatMessage(
+            role="user",
+            web_search=False,
+            thinking=False,
+            blocks=[
+                TextBlock(
+                    block_type="text",
+                    text="ini gambar apa?"
+                ),
+                ImageBlock(
+                    block_type="image",
+                    url=getUrl.file_url,
+                    image_mimetype="image/jpeg"
+                )
+            ]
+        )]
+
+        response = client.chat.create(
+            messages=messages,
+            model="qwen-max-latest",
+            stream=True,
+        )
+
+        for chunk in response:
+            delta = chunk.choices[0].delta
+            if 'extra' in delta and 'web_search_info' in delta.extra:
+                print("\nHasil pencarian:", delta.extra.web_search_info)
+                print()
+
+            print(delta.content, end="", flush=True)
+
+    except QwenAPIError as e:
+        print(f"Error: {str(e)}")
+
+
+if __name__ == "__main__":
+    main()
+```
+
+This example shows how to upload an image file and include it in a chat request. The process involves:
+
+1. Uploading the file using `upload_file`
+2. Creating a chat message with both text and image content
+3. Using the `create` method with `stream=True` to get a streaming response
+
+For more detailed examples of specific use cases, please refer to the README in the examples folder.
+
 ## Table of Contents
 
 1. [Qwen Class](#qwen-class)
@@ -182,32 +440,60 @@ def __init__(self, auth_token: Optional[str] = None, cookie: Optional[str] = Non
 
 ---
 
-## Exception Handling
+## Error Handling
 
-The Qwen API SDK also handles the following exceptions:
+The Qwen API SDK provides robust error handling through a hierarchy of exception classes:
 
-- **QwenAPIError**: Raised when there is an error with the API.
-- **RateLimitError**: Raised when the API rate limit is exceeded.
+- **QwenAPIError**: Base class for all API-related errors
+  - **QwenAPIStatusError**: Base class for HTTP status code errors
+    - **QwenAPIStatus4xxError**: Base class for client-side errors (400-499)
+      - **QwenAuthenticationError**: Raised when authentication fails
+      - **QwenInvalidRequestError**: Raised when the request is invalid
+    - **QwenAPIStatus5xxError**: Base class for server-side errors (500-599)
+  - **QwenConnectionError**: Raised when there's a network connection issue
+  - **QwenTimeoutError**: Raised when a request times out
+  - **RateLimitError**: Raised when the API rate limit is exceeded
+  - **QwenInternalError**: Raised when there's an internal SDK error
+
+Each error includes detailed information about what went wrong, including:
+
+- HTTP status code
+- Response headers and body
+- Request details
+- Timestamps
 
 ---
 
 ## Usage Example
 
-Here is an example usage of the `Qwen` class to send a message and receive a response:
+Here is a practical example demonstrating how to use the `Qwen` class to send a message and process the response:
 
 ```python
 from qwen_api import Qwen
 from qwen_api.types.chat import ChatMessage
 
-# Initialize the Qwen client
+# Initialize the Qwen client with API credentials
 client = Qwen(api_key="your_api_key")
 
-# Example of creating a chat response
-messages = [ChatMessage(role="user", content="Apa ibu kota Indonesia?")]
-response = client.chat.create(messages=messages)
+# Create a chat message from the user
+messages = [ChatMessage(
+    role="user",
+    content="What is the capital of Indonesia?"
+)]
 
-# Print the response
-print(response)
+# Get a response from the API
+try:
+    response = client.chat.create(
+        messages=messages,
+        model="qwen-max-latest"
+    )
+    # Print the successful response
+    print("Model response:", response.choices[0].message.content)
+
+except QwenAPIError as e:
+    print(f"API error occurred: {e}")
+    print(f"Status code: {e.status_code}")
+    print(f"Error details: {e.body}")
 ```
 
 ---

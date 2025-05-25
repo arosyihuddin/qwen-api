@@ -43,7 +43,7 @@ class ColorFormatter(logging.Formatter):
         return super().format(record)
 
 
-def setup_logger(logging_level: logging_level, save_logs: bool) -> logging.Logger:
+def setup_logger(logging_level: logging_level = "INFO", save_logs: bool = False) -> logging.Logger:
     logger = logging.getLogger("qwen_api")
     logger.propagate = False
 

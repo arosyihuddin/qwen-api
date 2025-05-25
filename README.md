@@ -8,41 +8,38 @@ Unofficial Python SDK for accessing [Qwen AI](https://chat.qwen.ai) API.
 
 ## ✨ Features
 
-1. **Prompt AI with various Qwen models**
+- **Prompt AI with various Qwen models**  
+  Supports multiple models including: `qwen-max-latest`, `qwen-plus-latest`, `qwq-32b`, `qwen-turbo-latest`, `qwen2.5-omni-7b`, `qvq-72b-preview-0310`, `qwen2.5-vl-32b-instruct`, `qwen2.5-14b-instruct-1m`, `qwen2.5-coder-32b-instruct`, and `qwen2.5-72b-instruct`.
 
-   - `qwen-max-latest`
-   - `qwen-plus-latest`
-   - `qwq-32b`
-   - `qwen-turbo-latest`
-   - `qwen2.5-omni-7b`
-   - `qvq-72b-preview-0310`
-   - `qwen2.5-vl-32b-instruct`
-   - `qwen2.5-14b-instruct-1m`
-   - `qwen2.5-coder-32b-instruct`
-   - `qwen2.5-72b-instruct`
+- **Streaming Response**  
+  Get token-by-token output in real-time for interactive applications.
 
-2. **Streaming Response**
+- **Synchronous & Asynchronous Support**  
+  Seamless integration for both sync and async workflows with the same intuitive API.
 
-   - Get token-by-token output in real-time.
+- **Web Search Integration**  
+  Enhance responses with real-time information using web search capabilities.
 
-3. **Synchronous & Asynchronous Support**
+- **File Upload Support**  
+  Upload files (including images) to the Qwen API for processing and analysis.
 
-   - Seamless integration for both sync and async workflows.
-
-4. **Web Search Integration**
-
-   - Enhance responses with real-time information using `web_search_info`.
-
-5. **Advanced Reasoning**
-
-   - Suitable for complex tasks including multi-hop reasoning and deep thinking.
+- **Advanced Reasoning**  
+  Suitable for complex tasks requiring multi-hop reasoning and deep thinking capabilities.
 
 ---
 
 ## 📦 Installation
 
+To install the package, use:
+
 ```bash
 pip install qwen-api
+```
+
+For development with Poetry:
+
+```bash
+poetry add oss2
 ```
 
 ## 🚀 Usage
@@ -53,8 +50,10 @@ pip install qwen-api
 from qwen_api.client import Qwen
 from qwen_api.types.chat import ChatMessage
 
+# Create a client instance
 client = Qwen()
 
+# Create a chat message
 messages = [
    ChatMessage(
       role="user",
@@ -64,12 +63,75 @@ messages = [
    )
 ]
 
+# Get a response from the API
 response = client.chat.create(
    messages=messages,
    model="qwen-max-latest",
 )
 
+# Print the response
 print(response)
+```
+
+### File Upload Example
+
+Here's how to upload a file and include it in a chat request:
+
+```python
+from qwen_api import Qwen
+from qwen_api.core.exceptions import QwenAPIError
+from qwen_api.core.types.chat import ChatMessage, TextBlock, ImageBlock
+
+
+def main():
+    client = Qwen(logging_level="DEBUG")
+
+    try:
+        # Upload an image file
+        getdataImage  = client.chat.upload_file(
+            file_path="tes_image.png"
+        )
+
+        # Create a chat message with both text and image content
+        messages = [ChatMessage(
+            role="user",
+            web_search=False,
+            thinking=False,
+            blocks=[
+                TextBlock(
+                    block_type="text",
+                    text="What's in this image?"
+                ),
+                ImageBlock(
+                    block_type="image",
+                    url=getdataImage   .file_url,
+                    image_mimetype=getdataImage.image_mimetype
+                )
+            ]
+        )]
+
+        # Get a streaming response
+        response = client.chat.create(
+            messages=messages,
+            model="qwen-max-latest",
+            stream=True,
+        )
+
+        # Process the stream
+        for chunk in response:
+            delta = chunk.choices[0].delta
+            if 'extra' in delta and 'web_search_info' in delta.extra:
+                print("\nSearch results:", delta.extra.web_search_info)
+                print()
+
+            print(delta.content, end="", flush=True)
+
+    except QwenAPIError as e:
+        print(f"Error: {str(e)}")
+
+
+if __name__ == "__main__":
+    main()
 ```
 
 ### Async Usage
@@ -80,24 +142,91 @@ from qwen_api.client import Qwen
 from qwen_api.types.chat import ChatMessage
 
 async def main():
-   client = Qwen()
-   messages = [
-      ChatMessage(
-         role="user",
-         content="what is LLM?",
-         web_search=True,
-         thinking=False,
-      )
-   ]
+    # Create a client instance
+    client = Qwen()
 
-   response = await client.chat.acreate(
-      messages=messages,
-      model="qwen-max-latest",
-   )
+    # Create a chat message
+    messages = [
+        ChatMessage(
+            role="user",
+            content="what is LLM?",
+            web_search=True,
+            thinking=False,
+        )
+    ]
 
-   print(response)
+    # Get a response from the API
+    response = await client.chat.acreate(
+        messages=messages,
+        model="qwen-max-latest",
+    )
+
+    # Print the response
+    print(response)
 
 asyncio.run(main())
+```
+
+### Asynchronous File Upload Example
+
+Here's how to perform file upload asynchronously:
+
+```python
+import asyncio
+from qwen_api import Qwen
+from qwen_api.core.exceptions import QwenAPIError
+from qwen_api.core.types.chat import ChatMessage, TextBlock, ImageBlock
+
+
+async def main():
+    client = Qwen()
+
+    try:
+        # Upload an image file asynchronously
+        getdataImage  = await client.chat.async_upload_file(
+            file_path="tes_image.png"
+        )
+
+        # Create a chat message with both text and image content
+        messages = [ChatMessage(
+            role="user",
+            web_search=False,
+            thinking=False,
+            blocks=[
+                TextBlock(
+                    block_type="text",
+                    text="What's in this image?"
+                ),
+                ImageBlock(
+                    block_type="image",
+                    url=getdataImage   .file_url,
+                    image_mimetype=getdataImage
+                )
+            ]
+        )]
+
+        # Get a streaming response
+        response = await client.chat.acreate(
+            messages=messages,
+            model="qwen-max-latest",
+            stream=True,
+        )
+
+        # Process the stream
+        async for chunk in response:
+            delta = chunk.choices[0].delta
+            if 'extra' in delta and 'web_search_info' in delta.extra:
+                print("\nSearch results:", delta.extra.web_search_info)
+                print()
+
+            print(delta.content, end="", flush=True)
+
+    except QwenAPIError as e:
+        print(f"Error: {str(e)}")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
 
 **Output:**
@@ -109,7 +238,10 @@ choices=Choice(message=Message(role='assistant', content='A Large Language Model
 ### Streaming
 
 ```python
+# Create a client instance
 client = Qwen()
+
+# Create a chat message
 messages = [
    ChatMessage(
       role="user",
@@ -119,12 +251,14 @@ messages = [
    )
 ]
 
+# Get a streaming response from the API
 response = client.chat.create(
    messages=messages,
    model="qwen-max-latest",
    stream=True,
 )
 
+# Process the stream
 for chunk in response:
    print(chunk.model_dump())
 ```
@@ -147,6 +281,12 @@ For complete documentation, visit the [documentation file](docs/documentation.md
 ## ⚙️ Environment Setup
 
 To use `qwen-api`, you need to obtain your `AUTH TOKEN` and `COOKIE` from [https://chat.qwen.ai](https://chat.qwen.ai). Follow these steps:
+
+To use Alibaba Cloud OSS functionality, you'll also need to ensure you have the SDK installed:
+
+```bash
+poetry add oss2
+```
 
 1. **Sign Up or Log In**
    Visit [https://chat.qwen.ai](https://chat.qwen.ai) and sign up or log in to your account.
@@ -194,28 +334,33 @@ To use `qwen-api`, you need to obtain your `AUTH TOKEN` and `COOKIE` from [https
 
 ## 📂 Examples
 
-Check the `examples/` folder for more advanced usage.
+Check the `examples/` folder for more advanced usage, including:
+
+- **Basic Usage**: Simple synchronous and asynchronous examples for getting started
+- **Streaming**: Examples demonstrating real-time response processing
+- **File Upload**: Demonstrations of file upload capabilities, including image processing
+- **LlamaIndex Integration**: Advanced examples using LlamaIndex framework
 
 ---
 
 ## 📃 License
 
-Copyright 2025 Ahmad Rosyihuddin
+This project uses the MIT License:
 
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ---
 
 ## 🙋‍♂️ Contributing
 
-Contributions, issues, and feature requests are welcome!
+We welcome contributions! Here's how to contribute:
 
 1. Fork the project
 2. Create your feature branch (`git checkout -b feature/feature-name`)
-3. Commit your changes (`git commit -am 'Add new feature'`)
+3. Commit your changes (`git commit -m 'Add new feature'`)
 4. Push to the branch (`git push origin feature/feature-name`)
 5. Open a Pull Request
