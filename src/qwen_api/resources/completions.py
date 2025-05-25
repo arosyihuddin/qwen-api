@@ -114,21 +114,78 @@ class Completion:
                 await session.close()
             raise
 
-    def upload_file(self, file_path: str, filesize: Optional[int] = None, filetype: Optional[str] = None):
-        if not os.path.isfile(file_path):
-            raise FileNotFoundError(f"File not found: {file_path}")
+    def upload_file(self, file_path: str = None, base64_data: str = None):
+        if not file_path and not base64_data:
+            raise ValueError(
+                "Either file_path or base64_data must be provided")
 
-        file_size = filesize or os.path.getsize(file_path)
+        # If base64_data is provided, process it directly
+        if base64_data:
+            # Process base64 data
+            import base64
+            from io import BytesIO
+
+            # Check if this is a data URI and extract the base64 part
+            if base64_data.startswith('data:image/'):
+                try:
+                    header, data = base64_data.split(',', 1)
+                    mime_type = header.split(';')[0].split(':')[1]
+                    is_base64 = True
+                except ValueError:
+                    # Invalid data URI format, treat as regular base64 string
+                    mime_type = 'image/png'  # Default if we can't parse
+                    data = base64_data
+                    is_base64 = False
+            else:
+                data = base64_data
+                mime_type = 'image/png'
+                is_base64 = True
+
+            # Decode the base64 data
+            try:
+                file_content = base64.b64decode(data)
+            except Exception as e:
+                raise ValueError(f"Invalid base64 data: {e}")
+
+            # Create a temporary file name
+            filename = "uploaded_image.png"
+            if ';' in mime_type:
+                mime_type = mime_type.split(';')[0]
+
+            if '/' in mime_type:
+                ext = mime_type.split('/')[-1].lower()
+                if ext in ['jpeg', 'jpg']:
+                    filename = f"uploaded_image.jpg"
+                elif ext == 'png':
+                    filename = f"uploaded_image.png"
+                elif ext == 'gif':
+                    filename = f"uploaded_image.gif"
+                elif ext == 'webp':
+                    filename = f"uploaded_image.webp"
+
+            # Get file size
+            file_size = len(file_content)
+
+        elif os.path.isfile(file_path):
+            # Read file content
+            with open(file_path, 'rb') as file:
+                file_content = file.read()
+
+            file_size = os.path.getsize(file_path)
+            filename = os.path.basename(file_path)
+
         detected_mime_type = None
-        if not filetype:
+        if not base64_data:
             detected_mime_type, _ = mimetypes.guess_type(file_path)
 
-        mime_type = filetype or detected_mime_type or 'application/octet-stream'
+        mime_type = detected_mime_type
+        if base64_data:
+            mime_type = mime_type or 'image/png'
 
         payload = {
-            "filename": os.path.basename(file_path),
+            "filename": filename,
             "filesize": file_size,
-            "filetype": mime_type.split('/')[0] if mime_type else "application"
+            "filetype": mime_type.split('/')[0] if mime_type else "image"
         }
 
         headers = self._client._build_headers()
@@ -146,11 +203,11 @@ class Completion:
             except Exception:
                 error_text = response.text()
             self._client.logger.error(
-                f"API Error: {response.status} {error_text}")
+                f"API Error: {response.status_code} {error_text}")
             raise QwenAPIError(
-                f"API Error: {response.status} {error_text}")
+                f"API Error: {response.status_code} {error_text}")
 
-        if response.status == 429:
+        if response.status_code == 429:
             self._client.logger.error("Too many requests")
             raise RateLimitError("Too many requests")
 
@@ -179,12 +236,7 @@ class Completion:
         # Create minimal required headers for signing
         request_datetime = dt.datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
 
-        # Read file content
-        with open(file_path, 'rb') as file:
-            file_content = file.read()
-
         # Use oss2 library to generate signed headers instead of manual signing
-
         endpoint = f"https://{region}.aliyuncs.com"
         auth = Auth(access_key_id, access_key_secret)
         bucket = Bucket(auth, endpoint, response_data['bucketname'])
@@ -194,7 +246,7 @@ class Completion:
 
         # Create basic headers
         oss_headers = {
-            'Content-Type': mime_type or content_type_by_name(file_path),
+            'Content-Type': mime_type or content_type_by_name(file_path) if not base64_data else mime_type,
             'Date': date_str,
             'x-oss-security-token': security_token,
             'x-oss-content-sha256': 'UNSIGNED-PAYLOAD'
@@ -236,34 +288,83 @@ class Completion:
         }
         return FileResult(**result)
 
-    async def async_upload_file(self, file_path: str, filesize: Optional[int] = None, filetype: Optional[str] = None):
-        if not os.path.isfile(file_path):
-            raise FileNotFoundError(f"File not found: {file_path}")
+    async def async_upload_file(self, file_path: str = None, base64_data: str = None):
+        if not file_path and not base64_data:
+            raise ValueError(
+                "Either file_path or base64_data must be provided")
 
-        file_size = filesize or os.path.getsize(file_path)
+        # If base64_data is provided, process it directly
+        if base64_data:
+            # Process base64 data
+            import base64
+            from io import BytesIO
+
+            # Check if this is a data URI and extract the base64 part
+            if base64_data.startswith('data:image/'):
+                try:
+                    header, data = base64_data.split(',', 1)
+                    mime_type = header.split(';')[0].split(':')[1]
+                    is_base64 = True
+                except ValueError:
+                    # Invalid data URI format, treat as regular base64 string
+                    mime_type = 'image/png'  # Default if we can't parse
+                    data = base64_data
+                    is_base64 = False
+            else:
+                data = base64_data
+                mime_type = 'image/png'
+                is_base64 = True
+
+            # Decode the base64 data
+            try:
+                file_content = base64.b64decode(data)
+            except Exception as e:
+                raise ValueError(f"Invalid base64 data: {e}")
+
+            # Create a temporary file name
+            filename = "uploaded_image.png"
+            if ';' in mime_type:
+                mime_type = mime_type.split(';')[0]
+
+            if '/' in mime_type:
+                ext = mime_type.split('/')[-1].lower()
+                if ext in ['jpeg', 'jpg']:
+                    filename = f"uploaded_image.jpg"
+                elif ext == 'png':
+                    filename = f"uploaded_image.png"
+                elif ext == 'gif':
+                    filename = f"uploaded_image.gif"
+                elif ext == 'webp':
+                    filename = f"uploaded_image.webp"
+
+            # Get file size
+            file_size = len(file_content)
+
+        elif os.path.isfile(file_path):
+            # Read file content
+            with open(file_path, 'rb') as file:
+                file_content = file.read()
+
+            file_size = os.path.getsize(file_path)
+            filename = os.path.basename(file_path)
+
         detected_mime_type = None
-        if not filetype:
+        if not base64_data:
             detected_mime_type, _ = mimetypes.guess_type(file_path)
 
-        mime_type = filetype or detected_mime_type or 'application/octet-stream'
+        mime_type = detected_mime_type
+        if base64_data:
+            mime_type = mime_type or 'image/png'
 
         payload = {
-            "filename": os.path.basename(file_path),
+            "filename": filename,
             "filesize": file_size,
-            "filetype": mime_type.split('/')[0] if mime_type else "application"
+            "filetype": mime_type.split('/')[0] if mime_type else "image"
         }
 
         headers = self._client._build_headers()
         headers['Content-Type'] = 'application/json'
 
-        # Ganti dengan async request
-        # session = aiohttp.ClientSession()
-        # response = await session.post(
-        #     url=self._client.base_url + EndpointAPI.upload_file,
-        #     headers=headers,
-        #     json=payload,
-        #     timeout=aiohttp.ClientTimeout(total=120)
-        # )
         async with aiohttp.ClientSession() as session:
             response = await session.post(
                 url=self._client.base_url + EndpointAPI.upload_file,
@@ -305,12 +406,7 @@ class Completion:
             # Create minimal required headers for signing
             request_datetime = dt.datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
 
-            # Read file content asynchronously
-            async with aiofiles.open(file_path, 'rb') as file:
-                file_content = await file.read()
-
             # Use oss2 library to generate signed headers instead of manual signing
-
             endpoint = f"https://{region}.aliyuncs.com"
             auth = Auth(access_key_id, access_key_secret)
             bucket = Bucket(auth, endpoint, response_data['bucketname'])
@@ -320,7 +416,7 @@ class Completion:
 
             # Create basic headers
             oss_headers = {
-                'Content-Type': mime_type or content_type_by_name(file_path),
+                'Content-Type': mime_type or content_type_by_name(file_path) if not base64_data else mime_type,
                 'Date': date_str,
                 'x-oss-security-token': security_token,
                 'x-oss-content-sha256': 'UNSIGNED-PAYLOAD'
@@ -340,7 +436,7 @@ class Completion:
                     None,
                     lambda: bucket.put_object(
                         key=response_data['file_path'],
-                        data=file_content,
+                        data=file_content if not base64_data else file_content,
                         headers=oss_headers
                     )
                 )
