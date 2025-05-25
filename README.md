@@ -36,12 +36,6 @@ To install the package, use:
 pip install qwen-api
 ```
 
-For development with Poetry:
-
-```bash
-poetry add oss2
-```
-
 ## 🚀 Usage
 
 ### Basic Usage
