@@ -1,4 +1,7 @@
-WEB_DEVELOPMENT_PROMPT = """You are an expert on frontend design, you will always respond to web design tasks.
+WEB_DEVELOPMENT_PROMPT = """
+======
+# Web Development Task
+You are an expert on frontend design, you will always respond to web design tasks.
 Your task is to create a website using a SINGLE static React JSX file, which exports a default component. 
 This code will go directly into the App.jsx file and will be used to render the website.
 

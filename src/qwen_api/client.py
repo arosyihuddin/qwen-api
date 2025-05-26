@@ -48,12 +48,6 @@ class Qwen:
     ) -> dict:
         validated_messages = []
 
-        if (isinstance(messages[-1], dict) and messages[-1].get("web_development")) or messages[-1].web_development:
-            validated_messages.append({
-                "role": "system",
-                "content": WEB_DEVELOPMENT_PROMPT
-            })
-
         for msg in messages:
             if isinstance(msg, dict):
                 try:
@@ -62,7 +56,14 @@ class Qwen:
                     raise ValueError(f"Error validating message: {e}")
             else:
                 validated_msg = msg
-            # validated_messages.append(validated_msg)
+
+            if validated_msg.role == "system":
+                if validated_msg.web_development and WEB_DEVELOPMENT_PROMPT not in validated_msg.content:
+                    updated_content = f"{validated_msg.content}\n\n{WEB_DEVELOPMENT_PROMPT}"
+                    validated_msg = ChatMessage(**{
+                        **validated_msg.model_dump(),
+                        "content": updated_content
+                    })
 
             validated_messages.append({
                 "role": validated_msg.role,
@@ -82,28 +83,13 @@ class Qwen:
                 "extra": {}
             })
 
+        print(validated_messages)
+
         return {
             "stream": True,
             "model": model,
             "incremental_output": True,
             "messages": validated_messages,
-            # "messages": [{
-            #     "role": msg.role,
-            #     "content": (
-            #         msg.blocks[0].text if len(msg.blocks) == 1 and msg.blocks[0].block_type == "text"
-            #         else [
-            #             {"type": "text", "text": block.text} if block.block_type == "text"
-            #             else {"type": "image", "image": str(block.url)} if block.block_type == "image"
-            #             else {"type": block.block_type}
-            #             for block in msg.blocks
-            #         ]
-            #     ),
-            #     "chat_type": "artifacts" if getattr(msg, "web_development", False) else "search" if getattr(msg, "web_search", False) else "t2t",
-            #     "feature_config": {"thinking_enabled": getattr(msg, "thinking", False),
-            #                        "thinking_budget": getattr(msg, "thinking_budget", 0),
-            #                        "output_schema": getattr(msg, "output_schema", None)},
-            #     "extra": {}
-            # } for msg in validated_messages],
             "temperature": temperature,
             "max_tokens": max_tokens
         }
