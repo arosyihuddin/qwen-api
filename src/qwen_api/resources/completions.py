@@ -376,9 +376,9 @@ class Completion:
             if not response.ok:
                 error_text = response.json()
                 self._client.logger.error(
-                    f"API Error: {response.status_code} {error_text}")
+                    f"API Error: {response.status} {error_text}")
                 raise QwenAPIError(
-                    f"API Error: {response.status_code} {error_text}")
+                    f"API Error: {response.status} {error_text}")
 
             if response.status == 429:
                 self._client.logger.error("Too many requests")
