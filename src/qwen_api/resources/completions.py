@@ -85,7 +85,7 @@ class Completion:
                 url=self._client.base_url + EndpointAPI.completions,
                 headers=self._client._build_headers(),
                 json=payload,
-                timeout=aiohttp.ClientTimeout(total=120)
+                timeout=aiohttp.ClientTimeout(total=self._client.timeout)
             )
 
             if not response.ok:
@@ -370,7 +370,7 @@ class Completion:
                 url=self._client.base_url + EndpointAPI.upload_file,
                 headers=headers,
                 json=payload,
-                timeout=aiohttp.ClientTimeout(total=120)
+                timeout=aiohttp.ClientTimeout(total=self._client.timeout)
             )
 
             if not response.ok:

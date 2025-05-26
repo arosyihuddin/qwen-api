@@ -8,7 +8,7 @@ from .logger import setup_logger
 from .core.types.chat import ChatResponse,  ChatResponseStream, ChatMessage
 from .resources.completions import Completion
 from pydantic import ValidationError
-from .core.types.endpoint_api import EndpointAPI
+from .utils.promp_system import WEB_DEVELOPMENT_PROMPT
 from .core.exceptions import QwenAPIError
 
 
@@ -18,7 +18,7 @@ class Qwen:
         api_key: Optional[str] = None,
         cookie: Optional[str] = None,
         base_url: str = "https://chat.qwen.ai",
-        timeout: int = 30,
+        timeout: int = 600,
         logging_level: str = "INFO",
         save_logs: bool = False,
     ):
@@ -47,6 +47,13 @@ class Qwen:
         max_tokens: Optional[int]
     ) -> dict:
         validated_messages = []
+
+        if (isinstance(messages[-1], dict) and messages[-1].get("web_development")) or messages[-1].web_development:
+            validated_messages.append({
+                "role": "system",
+                "content": WEB_DEVELOPMENT_PROMPT
+            })
+
         for msg in messages:
             if isinstance(msg, dict):
                 try:
@@ -55,26 +62,48 @@ class Qwen:
                     raise ValueError(f"Error validating message: {e}")
             else:
                 validated_msg = msg
-            validated_messages.append(validated_msg)
-        return {
-            "stream": True,
-            "model": model,
-            "incremental_output": True,
-            "messages": [{
-                "role": msg.role,
+            # validated_messages.append(validated_msg)
+
+            validated_messages.append({
+                "role": validated_msg.role,
                 "content": (
-                    msg.blocks[0].text if len(msg.blocks) == 1 and msg.blocks[0].block_type == "text"
+                    validated_msg.blocks[0].text if len(validated_msg.blocks) == 1 and validated_msg.blocks[0].block_type == "text"
                     else [
                         {"type": "text", "text": block.text} if block.block_type == "text"
                         else {"type": "image", "image": str(block.url)} if block.block_type == "image"
                         else {"type": block.block_type}
-                        for block in msg.blocks
+                        for block in validated_msg.blocks
                     ]
                 ),
-                "chat_type": "search" if getattr(msg, "web_search", False) else "t2t",
-                "feature_config": {"thinking_enabled": getattr(msg, "thinking", False)},
+                "chat_type": "artifacts" if getattr(validated_msg, "web_development", False) else "search" if getattr(validated_msg, "web_search", False) else "t2t",
+                "feature_config": {"thinking_enabled": getattr(validated_msg, "thinking", False),
+                                   "thinking_budget": getattr(validated_msg, "thinking_budget", 0),
+                                   "output_schema": getattr(validated_msg, "output_schema", None)},
                 "extra": {}
-            } for msg in validated_messages],
+            })
+
+        return {
+            "stream": True,
+            "model": model,
+            "incremental_output": True,
+            "messages": validated_messages,
+            # "messages": [{
+            #     "role": msg.role,
+            #     "content": (
+            #         msg.blocks[0].text if len(msg.blocks) == 1 and msg.blocks[0].block_type == "text"
+            #         else [
+            #             {"type": "text", "text": block.text} if block.block_type == "text"
+            #             else {"type": "image", "image": str(block.url)} if block.block_type == "image"
+            #             else {"type": block.block_type}
+            #             for block in msg.blocks
+            #         ]
+            #     ),
+            #     "chat_type": "artifacts" if getattr(msg, "web_development", False) else "search" if getattr(msg, "web_search", False) else "t2t",
+            #     "feature_config": {"thinking_enabled": getattr(msg, "thinking", False),
+            #                        "thinking_budget": getattr(msg, "thinking_budget", 0),
+            #                        "output_schema": getattr(msg, "output_schema", None)},
+            #     "extra": {}
+            # } for msg in validated_messages],
             "temperature": temperature,
             "max_tokens": max_tokens
         }

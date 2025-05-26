@@ -35,6 +35,7 @@ def main():
             role="user",
             web_search=False,
             thinking=False,
+            web_development=True,
             blocks=[
                 TextBlock(
                     block_type="text",
@@ -58,7 +59,6 @@ def main():
         # Process and print the streaming response in real-time
         for chunk in response:
             delta = chunk.choices[0].delta
-
             # Handle any web search information in the response
             if 'extra' in delta and 'web_search_info' in delta.extra:
                 print("\nHasil pencarian:", delta.extra.web_search_info)

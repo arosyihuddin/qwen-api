@@ -266,12 +266,20 @@ class ChatResponse(BaseModel):
     choices: list[Choice]
 
 
+class Usage(BaseModel):
+    """Usage statistics for the chat response."""
+    input_tokens: int
+    output_tokens: int
+    total_tokens: int
+    output_tokens_details: Optional[Dict[str, int]] = None
+
+
 class ChatResponseStream(BaseModel):
     """Chat response stream."""
 
     choices: list[ChoiceStream]
-    usage: dict
-    # message: ChatMessage
+    usage: Usage
+    message: ChatMessage
 
 
 ContentBlock = Annotated[
@@ -282,24 +290,44 @@ ContentBlock = Annotated[
 
 class ChatMessage(BaseModel):
     role: MessageRole = MessageRole.USER
-    additional_kwargs: Dict[str, Any] = Field(default_factory=dict)
     web_search: bool = False
+    web_development: bool = Field(
+        default=False, description="If web_development is True, web_search will be disabled automatically.")
     thinking: bool = False
+    output_schema: Optional[Literal['phase']] = None
+    thinking_budget: Optional[int] = Field(default=None, max=38912)
     blocks: List[ContentBlock] = Field(default_factory=list)
+    additional_kwargs: Dict[str, Any] = Field(default_factory=dict)
 
-    def __init__(self, content: any | None = None, **data: Any) -> None:
+    def __init__(self,
+                 content: Optional[any | None] = None,
+                 role: MessageRole = MessageRole.USER,
+                 web_search: Optional[bool] = False,
+                 web_development: Optional[bool] = False,
+                 thinking: Optional[bool] = False,
+                 output_schema: Optional[Literal['phase', None]] = None,
+                 thinking_budget: Optional[int] = None,
+                 blocks: Optional[List[ContentBlock]] = Field(
+                     default_factory=list),
+                 **anyData: Any
+                 ) -> None:
         # Handle LlamaIndex compatibility
-        if "role" in data and isinstance(data["role"], Enum):
-            data["role"] = data["role"].value
+        data = {}
+        data["role"] = role
+        data["web_search"] = web_search
+        data["web_development"] = web_development
+        data["thinking"] = thinking
+        data["output_schema"] = output_schema
+        data["thinking_budget"] = thinking_budget
 
         # Handle blocks field for both Qwen and LlamaIndex
-        if "blocks" in data:
-            if not isinstance(data["blocks"], list):
-                data["blocks"] = [data["blocks"]]
+        if len(data) > 0:
+            if not isinstance(blocks, list):
+                data["blocks"] = blocks
             else:
                 # Validate each block
                 valid_blocks = []
-                for block in data["blocks"]:
+                for block in blocks:
                     # Handle different block types
                     if isinstance(block, (str, TextBlock)):
                         if isinstance(block, str):
@@ -322,9 +350,9 @@ class ChatMessage(BaseModel):
                 data["blocks"] = valid_blocks
 
         # Convert additional_kwargs to dict if it's not already
-        if "additional_kwargs" in data and not isinstance(data["additional_kwargs"], dict):
+        if "additional_kwargs" in anyData and not isinstance(anyData["additional_kwargs"], dict):
             try:
-                data["additional_kwargs"] = dict(data["additional_kwargs"])
+                data["additional_kwargs"] = dict(anyData["additional_kwargs"])
             except Exception:
                 data["additional_kwargs"] = {}
 
@@ -337,7 +365,6 @@ class ChatMessage(BaseModel):
             else:
                 # Handle other content types
                 data["blocks"] = [TextBlock(text=str(content))]
-
         # Call parent constructor
         super().__init__(**data)
 
