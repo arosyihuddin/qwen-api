@@ -268,9 +268,9 @@ class ChatResponse(BaseModel):
 
 class Usage(BaseModel):
     """Usage statistics for the chat response."""
-    input_tokens: int
-    output_tokens: int
-    total_tokens: int
+    input_tokens: Optional[int] = None
+    output_tokens: Optional[int] = None
+    total_tokens: Optional[int] = None
     output_tokens_details: Optional[Dict[str, int]] = None
 
 
@@ -278,7 +278,7 @@ class ChatResponseStream(BaseModel):
     """Chat response stream."""
 
     choices: list[ChoiceStream]
-    usage: Usage
+    usage: Optional[Usage]
     message: ChatMessage
 
 
