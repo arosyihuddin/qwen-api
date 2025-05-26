@@ -83,8 +83,6 @@ class Qwen:
                 "extra": {}
             })
 
-        print(validated_messages)
-
         return {
             "stream": True,
             "model": model,
