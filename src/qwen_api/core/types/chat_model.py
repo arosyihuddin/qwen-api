@@ -5,7 +5,7 @@ ChatModel = Literal[
     "qwen3-30b-a3b",
     "qwen3-32b",
     "qwen-max-latest",
-    "qwen-plus-2025-01-25"
+    "qwen-plus-2025-01-25",
     "qwen-turbo-2025-02-11",
     "qwq-32b",
     "qvq-72b-preview-0310",
