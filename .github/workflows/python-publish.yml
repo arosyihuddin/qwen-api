@@ -20,7 +20,7 @@ jobs:
 
   publish:
     needs: detect
-    if: ${{ fromJson(needs.detect.outputs.matrix).include != '' }}
+    if: ${{ fromJson(needs.detect.outputs.matrix).include && length(fromJson(needs.detect.outputs.matrix).include) > 0 }}
     runs-on: ubuntu-latest
     strategy:
       matrix: ${{ fromJson(needs.detect.outputs.matrix) }}

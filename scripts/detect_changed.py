@@ -1,19 +1,34 @@
-import subprocess
 import os
+import json
+import subprocess
 
-PACKAGES = ["qwen_api", "qwen_llamaindex"]
+# Daftar package di dalam monorepo
+packages = ["qwen_api", "qwen_llamaindex"]
+changed = []
 
-def has_changes(package):
+# Ambil tag terakhir (rilis sebelumnya)
+try:
+    last_tag = subprocess.check_output(["git", "describe", "--tags", "--abbrev=0"], text=True).strip()
+except subprocess.CalledProcessError:
+    # Kalau belum ada tag, gunakan root awal (semua dianggap berubah)
+    last_tag = ""
+
+for package in packages:
+    if last_tag:
+        diff_range = f"{last_tag}..HEAD"
+    else:
+        diff_range = "HEAD"
+
     result = subprocess.run(
-        ["git", "diff", "--name-only", "origin/main", "HEAD", "--", package],
+        ["git", "diff", "--name-only", diff_range, "--", package],
         capture_output=True, text=True
     )
-    return bool(result.stdout.strip())
+    if result.stdout.strip():
+        changed.append(package)
 
-changed = [pkg for pkg in PACKAGES if has_changes(pkg)]
+# Siapkan matrix untuk GitHub Actions
+matrix = json.dumps({ "include": [{"package": name} for name in changed] })
 
-# Print sebagai matrix YAML
-if changed:
-    print("::set-output name=matrix::{\"include\": " + str([{"package": p} for p in changed]) + "}")
-else:
-    print("::set-output name=matrix::{\"include\": []}")
+# Output ke GITHUB_OUTPUT (format baru GitHub Actions)
+with open(os.environ["GITHUB_OUTPUT"], "a") as fh:
+    fh.write(f"matrix={matrix}\n")
