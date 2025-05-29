@@ -1,4 +1,5 @@
 import os
+import requests
 from qwen_api.core.types.endpoint_api import EndpointAPI
 from typing import Any, Dict, Optional, AsyncGenerator, Generator, Sequence, List
 from llama_index.core.base.llms.types import (
@@ -11,7 +12,6 @@ from llama_index.core.base.llms.types import (
 from llama_index.core.llms.callbacks import llm_chat_callback, llm_completion_callback
 from llama_index.core.base.llms.generic_utils import get_from_param_or_env
 from pydantic import Field, ConfigDict
-import requests
 import aiohttp
 import json
 from sseclient import SSEClient

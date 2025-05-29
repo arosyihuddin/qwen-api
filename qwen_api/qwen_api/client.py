@@ -8,8 +8,8 @@ from .core.auth_manager import AuthManager
 from .logger import setup_logger
 from .core.types.chat import ChatResponse,  ChatResponseStream, ChatMessage
 from .resources.completions import Completion
-from .utils.promp_system import WEB_DEVELOPMENT_PROMPT
 from .core.exceptions import QwenAPIError
+from .utils.promp_system import WEB_DEVELOPMENT_PROMPT
 
 
 class Qwen:
