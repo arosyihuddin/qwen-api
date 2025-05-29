@@ -20,8 +20,8 @@ from qwen_api.logger import setup_logger
 from qwen_api.core.exceptions import QwenAPIError, RateLimitError
 from llama_index.core.llms.llm import LLM
 from qwen_api.core.types.chat_model import ChatModel
-from pydantic import ValidationError
 from qwen_api.utils.promp_system import WEB_DEVELOPMENT_PROMPT
+from pydantic import ValidationError
 from dotenv import load_dotenv
 load_dotenv()
 

@@ -1,33 +1,25 @@
-import os
+import toml
+import requests
 import json
-import subprocess
+import os
 
-# Daftar package di dalam monorepo
 packages = ["qwen_api", "qwen_llamaindex"]
 changed = []
 
-# Ambil tag terakhir (rilis sebelumnya)
-try:
-    last_tag = subprocess.check_output(["git", "describe", "--tags", "--abbrev=0"], text=True).strip()
-except subprocess.CalledProcessError:
-    # Kalau belum ada tag, gunakan root awal (semua dianggap berubah)
-    last_tag = ""
+def get_pypi_version(package_name):
+    url = f"https://pypi.org/pypi/{package_name}/json"
+    resp = requests.get(url)
+    if resp.status_code == 200:
+        return resp.json()['info']['version']
+    return None
 
-for package in packages:
-    if last_tag:
-        diff_range = f"{last_tag}..HEAD"
-    else:
-        diff_range = "HEAD"
+for pkg in packages:
+    local_version = toml.load(f"{pkg}/pyproject.toml")["project"]["version"]
+    pypi_version = get_pypi_version(pkg)
+    if pypi_version is None or local_version != pypi_version:
+        changed.append({"package": pkg})
 
-    result = subprocess.run(
-        ["git", "diff", "--name-only", diff_range, "--", package],
-        capture_output=True, text=True
-    )
-    if result.stdout.strip():
-        changed.append(package)
-
-# Siapkan matrix untuk GitHub Actions
-matrix = json.dumps({ "include": [{"package": name} for name in changed] })
+matrix = json.dumps({"include": changed})
 
 # Output ke GITHUB_OUTPUT kalau di CI, atau tampilkan di lokal
 if "GITHUB_OUTPUT" in os.environ:
