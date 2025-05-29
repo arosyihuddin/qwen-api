@@ -29,6 +29,10 @@ for package in packages:
 # Siapkan matrix untuk GitHub Actions
 matrix = json.dumps({ "include": [{"package": name} for name in changed] })
 
-# Output ke GITHUB_OUTPUT (format baru GitHub Actions)
-with open(os.environ["GITHUB_OUTPUT"], "a") as fh:
-    fh.write(f"matrix={matrix}\n")
+# Output ke GITHUB_OUTPUT kalau di CI, atau tampilkan di lokal
+if "GITHUB_OUTPUT" in os.environ:
+    with open(os.environ["GITHUB_OUTPUT"], "a") as fh:
+        fh.write(f"matrix={matrix}\n")
+else:
+    print("Matrix (local run):")
+    print(matrix)
