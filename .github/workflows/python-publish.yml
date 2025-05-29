@@ -20,7 +20,7 @@ jobs:
 
   publish:
     needs: detect
-    if: needs.detect.outputs.matrix != '{}'
+    if: needs.detect.outputs.matrix != '{}' && fromJson(needs.detect.outputs.matrix).include != []
     runs-on: ubuntu-latest
     strategy:
       matrix: ${{ fromJson(needs.detect.outputs.matrix) }}

@@ -3,12 +3,13 @@ from typing import AsyncGenerator, Generator, List, Optional
 import requests
 import aiohttp
 from sseclient import SSEClient
+from pydantic import ValidationError
 from .core.auth_manager import AuthManager
 from .logger import setup_logger
 from .core.types.chat import ChatResponse,  ChatResponseStream, ChatMessage
 from .resources.completions import Completion
-from pydantic import ValidationError
 from .utils.promp_system import WEB_DEVELOPMENT_PROMPT
+from .core.exceptions import QwenAPIError
 
 
 class Qwen:
@@ -52,7 +53,7 @@ class Qwen:
                 try:
                     validated_msg = ChatMessage(**msg)
                 except ValidationError as e:
-                    raise ValueError(f"Error validating message: {e}")
+                    raise QwenAPIError(f"Error validating message: {e}")
             else:
                 validated_msg = msg
 
