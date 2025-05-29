@@ -4,7 +4,7 @@ Qwen LlamaIndex Asynchronous Streaming Chat Example
 This script demonstrates using Qwen with LlamaIndex for asynchronous streaming chat-style interactions.
 """
 
-from qwen_api.llama_index import QwenLlamaIndex
+from qwen_llamaindex import QwenLlamaIndex
 from qwen_api.core.exceptions import QwenAPIError
 from llama_index.core.base.llms.types import ChatMessage, MessageRole
 

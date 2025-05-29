@@ -4,7 +4,7 @@ Qwen LlamaIndex Streaming Completion Example
 This script demonstrates using Qwen with LlamaIndex for streaming text completion tasks.
 """
 
-from qwen_api.llama_index import QwenLlamaIndex
+from qwen_llamaindex import QwenLlamaIndex
 
 
 def main():

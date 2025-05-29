@@ -3,7 +3,6 @@ import mimetypes
 import datetime as dt
 import aiohttp
 import requests
-import aiofiles
 import asyncio
 from oss2.utils import http_date
 from oss2.utils import content_type_by_name
@@ -116,7 +115,7 @@ class Completion:
 
     def upload_file(self, file_path: str = None, base64_data: str = None):
         if not file_path and not base64_data:
-            raise ValueError(
+            raise QwenAPIError(
                 "Either file_path or base64_data must be provided")
 
         # If base64_data is provided, process it directly
@@ -131,7 +130,7 @@ class Completion:
                     header, data = base64_data.split(',', 1)
                     mime_type = header.split(';')[0].split(':')[1]
                     is_base64 = True
-                except ValueError:
+                except QwenAPIError:
                     # Invalid data URI format, treat as regular base64 string
                     mime_type = 'image/png'  # Default if we can't parse
                     data = base64_data
@@ -145,7 +144,7 @@ class Completion:
             try:
                 file_content = base64.b64decode(data)
             except Exception as e:
-                raise ValueError(f"Invalid base64 data: {e}")
+                raise QwenAPIError(f"Invalid base64 data: {e}")
 
             # Create a temporary file name
             filename = "uploaded_image.png"
@@ -173,6 +172,9 @@ class Completion:
 
             file_size = os.path.getsize(file_path)
             filename = os.path.basename(file_path)
+        
+        else:
+            raise QwenAPIError(f"File {file_path} does not exist")
 
         detected_mime_type = None
         if not base64_data:
@@ -224,14 +226,14 @@ class Completion:
 
         # Validate credentials
         if not access_key_id:
-            raise ValueError("AccessKey ID cannot be empty")
+            raise QwenAPIError("AccessKey ID cannot be empty")
         if not access_key_secret:
-            raise ValueError("AccessKey Secret cannot be empty")
+            raise QwenAPIError("AccessKey Secret cannot be empty")
 
         # Get security token from response data
         security_token = response_data.get('security_token')
         if not security_token:
-            raise ValueError("Security token cannot be empty")
+            raise QwenAPIError("Security token cannot be empty")
 
         # Create minimal required headers for signing
         request_datetime = dt.datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
@@ -290,7 +292,7 @@ class Completion:
 
     async def async_upload_file(self, file_path: str = None, base64_data: str = None):
         if not file_path and not base64_data:
-            raise ValueError(
+            raise QwenAPIError(
                 "Either file_path or base64_data must be provided")
 
         # If base64_data is provided, process it directly
@@ -305,7 +307,7 @@ class Completion:
                     header, data = base64_data.split(',', 1)
                     mime_type = header.split(';')[0].split(':')[1]
                     is_base64 = True
-                except ValueError:
+                except QwenAPIError:
                     # Invalid data URI format, treat as regular base64 string
                     mime_type = 'image/png'  # Default if we can't parse
                     data = base64_data
@@ -319,7 +321,7 @@ class Completion:
             try:
                 file_content = base64.b64decode(data)
             except Exception as e:
-                raise ValueError(f"Invalid base64 data: {e}")
+                raise QwenAPIError(f"Invalid base64 data: {e}")
 
             # Create a temporary file name
             filename = "uploaded_image.png"
@@ -394,14 +396,14 @@ class Completion:
 
             # Validate credentials
             if not access_key_id:
-                raise ValueError("AccessKey ID cannot be empty")
+                raise QwenAPIError("AccessKey ID cannot be empty")
             if not access_key_secret:
-                raise ValueError("AccessKey Secret cannot be empty")
+                raise QwenAPIError("AccessKey Secret cannot be empty")
 
             # Get security token from response data
             security_token = response_data.get('security_token')
             if not security_token:
-                raise ValueError("Security token cannot be empty")
+                raise QwenAPIError("Security token cannot be empty")
 
             # Create minimal required headers for signing
             request_datetime = dt.datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")

@@ -20,6 +20,10 @@ from qwen_api.logger import setup_logger
 from qwen_api.core.exceptions import QwenAPIError, RateLimitError
 from llama_index.core.llms.llm import LLM
 from qwen_api.core.types.chat_model import ChatModel
+from pydantic import ValidationError
+from qwen_api.utils.promp_system import WEB_DEVELOPMENT_PROMPT
+from dotenv import load_dotenv
+load_dotenv()
 
 logging = setup_logger("INFO", False)
 
@@ -57,6 +61,7 @@ class QwenLlamaIndex(LLM):
         max_tokens: Optional[int] = 1500,
         **kwargs: Any,
     ):
+        
         auth_token = get_from_param_or_env(
             "auth_token", auth_token, "QWEN_AUTH_TOKEN")
         cookie = get_from_param_or_env("cookie", cookie, "QWEN_COOKIE")
@@ -135,36 +140,49 @@ class QwenLlamaIndex(LLM):
             else:
                 raise TypeError(
                     f"Cannot convert message of type {type(msg)} to dictionary")
+        
+        for msg in messages:
+            if isinstance(msg, dict):
+                try:
+                    validated_msg = ChatMessage(**msg)
+                except ValidationError as e:
+                    raise ValueError(f"Error validating message: {e}")
+            else:
+                validated_msg = msg
 
-        # Ensure each message has the required fields
-        result_messages = []
-        for msg in validated_messages:
-            # Create message with guaranteed fields
-            safe_msg = {
-                "role": str(msg.get("role", "user")),
-                "content": str(msg.get("content", "")),
-                "additional_kwargs": dict(msg.get("additional_kwargs", {})),
-                "web_search": bool(msg.get("web_search", False)),
-                "thinking": bool(msg.get("thinking", False)),
-                "blocks": list(msg.get("blocks", []))
-            }
+            if validated_msg.role == "system":
+                if validated_msg.web_development and WEB_DEVELOPMENT_PROMPT not in validated_msg.content:
+                    updated_content = f"{validated_msg.content}\n\n{WEB_DEVELOPMENT_PROMPT}"
+                    validated_msg = ChatMessage(**{
+                        **validated_msg.model_dump(),
+                        "content": updated_content
+                    })
 
-            result_messages.append(safe_msg)
+            validated_messages.append({
+                "role": validated_msg.role,
+                "content": (
+                    validated_msg.blocks[0].text if len(validated_msg.blocks) == 1 and validated_msg.blocks[0].block_type == "text"
+                    else [
+                        {"type": "text", "text": block.text} if block.block_type == "text"
+                        else {"type": "image", "image": str(block.url)} if block.block_type == "image"
+                        else {"type": block.block_type}
+                        for block in validated_msg.blocks
+                    ]
+                ),
+                "chat_type": "artifacts" if getattr(validated_msg, "web_development", False) else "search" if getattr(validated_msg, "web_search", False) else "t2t",
+                "feature_config": {"thinking_enabled": getattr(validated_msg, "thinking", False),
+                                   "thinking_budget": getattr(validated_msg, "thinking_budget", 0),
+                                   "output_schema": getattr(validated_msg, "output_schema", None)},
+                "extra": {}
+            })
 
         return {
-            "model": self.model,
-            "messages": [{
-                "role": msg["role"],
-                "content": msg["content"],
-                "chat_type": "search" if msg["web_search"] else "t2t",
-                "feature_config": {
-                    "thinking_enabled": msg["thinking"]
-                }
-            } for msg in result_messages],
-            "temperature": self.temperature,
-            "max_tokens": self.max_tokens,
             "stream": True,
-            "incremental_output": True
+            "model": self.model,
+            "incremental_output": True,
+            "messages": validated_messages,
+            "temperature": self.temperature,
+            "max_tokens": self.max_tokens
         }
 
     def _process_response(self, response: requests.Response) -> ChatResponse:
@@ -289,7 +307,6 @@ class QwenLlamaIndex(LLM):
 
     @llm_chat_callback()
     def stream_chat(self, messages: Sequence[ChatMessage], **kwargs) -> ChatResponse:
-        print(messages)
         payload = self._get_request_payload(messages, **kwargs)
         response = requests.post(
             DEFAULT_API_BASE + EndpointAPI.completions,

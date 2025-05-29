@@ -2,7 +2,7 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.vector_stores.milvus import MilvusVectorStore
 from llama_index.core import VectorStoreIndex, StorageContext, Document
 from llama_index.core import Settings
-from qwen_api.llama_index import QwenLlamaIndex
+from qwen_llamaindex import QwenLlamaIndex
 
 embeddings = HuggingFaceEmbedding(model_name="intfloat/multilingual-e5-base")
 llm = QwenLlamaIndex()

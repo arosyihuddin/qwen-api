@@ -26,7 +26,7 @@ def main():
     try:
         # Upload an image file to the Qwen API
         getDataImage = client.chat.upload_file(
-            file_path="/home/pstar7/Documents/Personal/Open Source Project/qwen-api/examples/tes_image.png"
+            file_path="/home/pstar7/Documents/Personal/Open Source Project/qwen-workspace/qwen_api/examples/tes_image.png"
         )
 
         # Create the chat message with both text and image content

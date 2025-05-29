@@ -4,7 +4,7 @@ Qwen LlamaIndex Asynchronous Completion Example
 This script demonstrates using Qwen with LlamaIndex for asynchronous text completion tasks.
 """
 
-from qwen_api.llama_index import QwenLlamaIndex
+from qwen_llamaindex import QwenLlamaIndex
 
 
 async def main():

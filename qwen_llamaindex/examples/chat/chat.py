@@ -4,7 +4,7 @@ Qwen LlamaIndex Basic Chat Example
 This script demonstrates using Qwen with LlamaIndex for basic chat-style interactions.
 """
 
-from qwen_api.llama_index import QwenLlamaIndex
+from qwen_llamaindex import QwenLlamaIndex
 from llama_index.core.base.llms.types import ChatMessage
 
 

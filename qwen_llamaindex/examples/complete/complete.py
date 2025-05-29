@@ -4,7 +4,7 @@ Qwen LlamaIndex Basic Completion Example
 This script demonstrates using Qwen with LlamaIndex for basic text completion tasks.
 """
 
-from qwen_api.llama_index import QwenLlamaIndex
+from qwen_llamaindex import QwenLlamaIndex
 
 
 def main():

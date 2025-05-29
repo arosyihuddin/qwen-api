@@ -4,9 +4,9 @@ Qwen LlamaIndex Streaming Chat Example
 This script demonstrates using Qwen with LlamaIndex for streaming chat-style interactions.
 """
 
-from qwen_api.llama_index import QwenLlamaIndex
+from qwen_llamaindex import QwenLlamaIndex
 from qwen_api.core.exceptions import QwenAPIError
-from qwen_api.core.types.chat import ChatMessage
+from llama_index.core.base.llms.types import ChatMessage
 
 
 def main():

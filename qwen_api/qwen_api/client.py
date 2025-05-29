@@ -9,7 +9,6 @@ from .core.types.chat import ChatResponse,  ChatResponseStream, ChatMessage
 from .resources.completions import Completion
 from pydantic import ValidationError
 from .utils.promp_system import WEB_DEVELOPMENT_PROMPT
-from .core.exceptions import QwenAPIError
 
 
 class Qwen:

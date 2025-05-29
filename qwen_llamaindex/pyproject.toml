@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=65.5.1", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qwen-llamaindex"
+version = "1.0.0"
+authors = [
+  { name="Ahmad Rosyihuddin", email="rosyihuddin.dev@gmail.com" },
+]
+description = "Unofficial Qwen API Client For Llamaindex"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+keywords = ["qwen", "ai", "llm", "qwen-api"]
+
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Build Tools",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+
+]
+
+dependencies = [
+    "llama-index>=0.12.28",
+    "python-dotenv (>=1.1.0,<2.0.0)",
+]
+
+[tool.poetry.dependencies]
+llama-index = { version = ">=0.12.28", python = ">=3.11,<4.0" }
+
+
+[project.urls]
+Homepage = "https://github.com/arosyihuddin/qwen-api"
+Documentation = "https://github.com/arosyihuddin/qwen-api"
+Repository = "https://github.com/arosyihuddin/qwen-api"
+Issues = "https://github.com/arosyihuddin/qwen-api/issues"
+
+[project.optional-dependencies]
+dev = ["pytest", "black", "mypy"]

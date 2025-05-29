@@ -5,30 +5,45 @@ on:
     types: [published]
 
 jobs:
-  build-and-publish:
+  detect:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
+    outputs:
+      matrix: ${{ steps.detect.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect Changed Packages
+        id: detect
+        run: |
+          python3 scripts/detect_changed.py
+        shell: bash
+
+  publish:
+    needs: detect
+    if: ${{ fromJson(needs.detect.outputs.matrix).include != '' }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{ fromJson(needs.detect.outputs.matrix) }}
+
+    defaults:
+      run:
+        working-directory: ./${{ matrix.package }}
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Python 3.12
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.11"
 
-      - name: Install build tools
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Configure PyPI Token
+        run: poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
+
+      - name: Build and Publish
         run: |
-          python -m pip install --upgrade pip
-          pip install build
-
-      - name: Build package
-        run: python -m build
-
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          user: __token__
-          password: ${{ secrets.PYPI_API_TOKEN }}
+          poetry build
+          poetry publish
