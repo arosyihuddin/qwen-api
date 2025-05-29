@@ -17,9 +17,10 @@ jobs:
         run: |
           python3 scripts/detect_changed.py
         shell: bash
-      
+
       - name: Debug matrix output
-        run: echo "Matrix: ${{ steps.detect.outputs.matrix }}"
+        run: |
+          echo "Matrix: ${{ steps.detect.outputs.matrix }}"
 
   publish:
     needs: detect
