@@ -263,7 +263,7 @@ class Choice(BaseModel):
 
 class ChatResponse(BaseModel):
     """Chat response."""
-    choices: list[Choice]
+    choices: Choice
 
 
 class Usage(BaseModel):
