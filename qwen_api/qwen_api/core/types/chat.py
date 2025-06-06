@@ -26,6 +26,7 @@ from pydantic import (
     model_validator,
 )
 from ...utils.image_llamaindex import resolve_binary
+from .response.function_tool import ToolCall
 
 
 class MessageRole(str, Enum):
@@ -254,6 +255,7 @@ class ChoiceStream(BaseModel):
 class Message(BaseModel):
     role: str
     content: str
+    tool_calls: Optional[List[ToolCall]] = None
 
 
 class Choice(BaseModel):

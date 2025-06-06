@@ -7,13 +7,14 @@ import asyncio
 from oss2.utils import http_date
 from oss2.utils import content_type_by_name
 from oss2 import Auth, Bucket
-from typing import AsyncGenerator, Generator, List, Optional, Union
+from typing import AsyncGenerator, Generator, List, Optional, Union, Iterable
 from ..core.types.upload_file import FileResult
 from ..core.exceptions import QwenAPIError, RateLimitError
 from ..core.types.chat import ChatResponseStream, ChatResponse, ChatMessage
 from ..core.types.chat_model import ChatModel
 from ..core.types.endpoint_api import EndpointAPI
-
+from ..core.types.response.tool_param import ToolParam
+from .tool_handle import using_tools, action_selection, async_using_tools, async_action_selection
 
 class Completion:
     def __init__(self, client):
@@ -26,7 +27,18 @@ class Completion:
         stream: bool = False,
         temperature: float = 0.7,
         max_tokens: Optional[int] = 2048,
+        tools: Optional[Iterable[ToolParam]] = None,
     ) -> Union[ChatResponse, Generator[ChatResponseStream, None, None]]:
+        use_tools = False
+        if tools:
+            use_tools = action_selection(messages, tools, model, temperature, max_tokens, stream, self._client)
+        
+        self._client.logger.debug(f"use tools: {use_tools}")
+        
+        if use_tools:    
+            tools = using_tools(messages, tools, model, temperature, max_tokens, stream, self._client)
+            return tools
+        
         payload = self._client._build_payload(
             messages=messages,
             model=model,
@@ -69,9 +81,19 @@ class Completion:
         stream: bool = False,
         temperature: float = 0.7,
         max_tokens: Optional[int] = 2048,
+        tools: Optional[Iterable[ToolParam]] = None,
     ) -> Union[ChatResponse, AsyncGenerator[ChatResponseStream, None]]:
         session = None
         try:
+            use_tools = False
+            if tools:
+                use_tools = await async_action_selection(messages, tools, model, temperature, max_tokens, stream, self._client)
+            
+            self._client.logger.debug(f"use tools: {use_tools}")
+            
+            if use_tools:    
+                return await async_using_tools(messages, tools, model, temperature, max_tokens, stream, self._client)
+            
             payload = self._client._build_payload(
                 messages=messages,
                 model=model,

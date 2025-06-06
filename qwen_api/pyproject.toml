@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "qwen-api"
-version = "1.3.11"
+version = "1.4.11"
 authors = [
   { name="Ahmad Rosyihuddin", email="rosyihuddin.dev@gmail.com" },
 ]

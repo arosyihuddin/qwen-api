@@ -6,11 +6,11 @@ from sseclient import SSEClient
 from pydantic import ValidationError
 from .core.auth_manager import AuthManager
 from .logger import setup_logger
-from .core.types.chat import ChatResponse,  ChatResponseStream, ChatMessage
+from .core.types.chat import ChatResponse,  ChatResponseStream, ChatMessage, MessageRole
 from .resources.completions import Completion
 from .utils.promp_system import WEB_DEVELOPMENT_PROMPT
 from .core.exceptions import QwenAPIError
-
+from .core.types.response.function_tool import ToolCall, Function
 
 class Qwen:
     def __init__(
@@ -66,7 +66,12 @@ class Qwen:
                     })
 
             validated_messages.append({
-                "role": validated_msg.role,
+                "role": (
+                    MessageRole.FUNCTION
+                    if validated_msg.role == MessageRole.TOOL
+                    else validated_msg.role if validated_msg.role == MessageRole.SYSTEM
+                    else MessageRole.USER
+                    ),
                 "content": (
                     validated_msg.blocks[0].text if len(validated_msg.blocks) == 1 and validated_msg.blocks[0].block_type == "text"
                     else [
@@ -108,6 +113,35 @@ class Qwen:
                     continue
         message["message"] = {"role": "assistant", "content": text}
         return ChatResponse(choices=message)
+    
+    def _process_response_tool(self, response: requests.Response) -> ChatResponse:
+        client = SSEClient(response)
+        message = {}
+        text = ""
+        for event in client.events():
+            if event.data:
+                try:
+                    data = json.loads(event.data)
+                    if data["choices"][0]["delta"].get("role") == "function":
+                        message["extra"] = (
+                            data["choices"][0]["delta"].get("extra"))
+                    text += data["choices"][0]["delta"].get("content")
+                except json.JSONDecodeError:
+                    continue
+        try:
+            self.logger.debug(f"text: {text}")
+            parse_json = json.loads(text)
+            if isinstance(parse_json["arguments"], str):
+                parse_arguments = json.loads(parse_json["arguments"])
+            else:
+                parse_arguments = parse_json["arguments"]
+            self.logger.debug(f"parse_json: {parse_json}")
+            self.logger.debug(f"arguments: {parse_arguments}")
+            function = Function(name=parse_json["name"], arguments=parse_arguments)
+            message["message"] = {"role": "assistant", "content": '', 'tool_calls': [ToolCall(function=function)]}
+            return ChatResponse(choices=message)
+        except json.JSONDecodeError as e:
+            return QwenAPIError(f"Error decoding JSON response: {e}")
 
     async def _process_aresponse(self, response: aiohttp.ClientResponse, session: aiohttp.ClientSession) -> ChatResponse:
         try:
@@ -125,6 +159,43 @@ class Qwen:
                         continue
             message["message"] = {"role": "assistant", "content": text}
             return ChatResponse(choices=message)
+        except aiohttp.ClientError as e:
+            self.logger.error(f"Client error: {e}")
+            raise
+
+        finally:
+            await session.close()
+
+    async def _process_aresponse_tool(self, response: aiohttp.ClientResponse, session: aiohttp.ClientSession) -> ChatResponse:
+        try:
+            message = {}
+            text = ""
+            async for line in response.content:
+                if line.startswith(b'data:'):
+                    try:
+                        data = json.loads(line[5:].decode())
+                        if data["choices"][0]["delta"].get("role") == "function":
+                            message["extra"] = (
+                                data["choices"][0]["delta"].get("extra"))
+                        text += data["choices"][0]["delta"].get("content")
+                    except json.JSONDecodeError:
+                        continue
+            try:
+                self.logger.debug(f"text: {text}")
+                parse_json = json.loads(text)
+                if isinstance(parse_json["arguments"], str):
+                    parse_arguments = json.loads(parse_json["arguments"])
+                else:
+                    parse_arguments = parse_json["arguments"]
+                self.logger.debug(f"parse_json: {parse_json}")
+                self.logger.debug(f"arguments: {parse_arguments}")
+                function = Function(name=parse_json["name"], arguments=parse_arguments)
+                message["message"] = {"role": "assistant", "content": '', 'tool_calls': [ToolCall(function=function)]}
+                return ChatResponse(choices=message)
+            except json.JSONDecodeError as e:
+                self.logger.error(f"Error decoding JSON response: {e}")
+                return QwenAPIError(f"Error decoding JSON response: {e}")
+            
         except aiohttp.ClientError as e:
             self.logger.error(f"Client error: {e}")
             raise
