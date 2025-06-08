@@ -6,6 +6,9 @@ from ..core.types.endpoint_api import EndpointAPI
 from ..core.exceptions import QwenAPIError, RateLimitError
 
 def action_selection(messages, tools, model, temperature, max_tokens, stream, client):
+    if messages[-1].role == "tool":
+        return False
+    
     choice_messages = [
         ChatMessage(
             role="system",
