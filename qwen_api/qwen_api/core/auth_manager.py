@@ -9,7 +9,6 @@ class AuthManager:
         load_dotenv()
         self._token = token or os.getenv("QWEN_AUTH_TOKEN")
         self._cookie = cookie or os.getenv("QWEN_COOKIE")
-        self._bx_ua = os.getenv("QWEN_BX_UA", "default-bx-ua-value")
 
     def get_token(self) -> str:
         if not self._token:

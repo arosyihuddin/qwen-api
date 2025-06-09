@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "qwen-llamaindex"
-version = "1.0.0"
+version = "1.0.1"
 authors = [
   { name="Ahmad Rosyihuddin", email="rosyihuddin.dev@gmail.com" },
 ]
@@ -30,6 +30,7 @@ classifiers = [
 dependencies = [
     "llama-index>=0.12.28",
     "python-dotenv (>=1.1.0,<2.0.0)",
+    "qwen-api>=1.4.12",
 ]
 
 [tool.poetry.dependencies]

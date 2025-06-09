@@ -292,8 +292,8 @@ ContentBlock = Annotated[
 
 class ChatMessage(BaseModel):
     role: MessageRole = MessageRole.USER
-    web_search: bool = False
-    web_development: bool = Field(
+    web_search: Optional[bool] = False
+    web_development: Optional[bool] = Field(
         default=False, description="If web_development is True, web_search will be disabled automatically.")
     thinking: bool = False
     output_schema: Optional[Literal['phase']] = None

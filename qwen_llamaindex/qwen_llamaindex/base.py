@@ -10,7 +10,6 @@ from llama_index.core.base.llms.types import (
     LLMMetadata,
 )
 from llama_index.core.llms.callbacks import llm_chat_callback, llm_completion_callback
-from llama_index.core.base.llms.generic_utils import get_from_param_or_env
 from pydantic import Field, ConfigDict
 import aiohttp
 import json
@@ -20,7 +19,6 @@ from qwen_api.logger import setup_logger
 from qwen_api.core.exceptions import QwenAPIError, RateLimitError
 from llama_index.core.llms.llm import LLM
 from qwen_api.core.types.chat_model import ChatModel
-from qwen_api.utils.promp_system import WEB_DEVELOPMENT_PROMPT
 from pydantic import ValidationError
 from dotenv import load_dotenv
 load_dotenv()
@@ -62,9 +60,15 @@ class QwenLlamaIndex(LLM):
         **kwargs: Any,
     ):
         
-        auth_token = get_from_param_or_env(
-            "auth_token", auth_token, "QWEN_AUTH_TOKEN")
-        cookie = get_from_param_or_env("cookie", cookie, "QWEN_COOKIE")
+        auth_token = auth_token or os.environ.get("QWEN_AUTH_TOKEN")
+        cookie = cookie or os.environ.get("QWEN_COOKIE")
+        
+        if not auth_token:
+            raise ValueError("QWEN_AUTH_TOKEN tidak tersedia di argumen atau environment")
+
+        if not cookie:
+            raise ValueError("QWEN_COOKIE tidak tersedia di argumen atau environment")
+
 
         super().__init__(
             model=model,
@@ -97,7 +101,7 @@ class QwenLlamaIndex(LLM):
         pass
 
     def _get_headers(self) -> Dict[str, str]:
-        api_key = self.api_key or os.getenv('QWEN_API_KEY')
+        api_key = self.api_key or os.environ.get("QWEN_AUTH_TOKEN")
         if not api_key:
             raise ValueError(
                 "API Key tidak ditemukan. Harap set QWEN_API_KEY atau berikan auth_token.")
@@ -149,14 +153,6 @@ class QwenLlamaIndex(LLM):
                     raise ValueError(f"Error validating message: {e}")
             else:
                 validated_msg = msg
-
-            if validated_msg.role == "system":
-                if validated_msg.web_development and WEB_DEVELOPMENT_PROMPT not in validated_msg.content:
-                    updated_content = f"{validated_msg.content}\n\n{WEB_DEVELOPMENT_PROMPT}"
-                    validated_msg = ChatMessage(**{
-                        **validated_msg.model_dump(),
-                        "content": updated_content
-                    })
 
             validated_messages.append({
                 "role": validated_msg.role,
