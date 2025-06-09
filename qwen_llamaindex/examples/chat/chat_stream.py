@@ -20,7 +20,7 @@ def main():
     """
     # Initialize the QwenLlamaIndex instance
     llm = QwenLlamaIndex()
-
+    
     # Create the chat message and send the streaming request
     response = llm.stream_chat(
         [ChatMessage(role="user", content="Apa ibu kota Indonesia?")]

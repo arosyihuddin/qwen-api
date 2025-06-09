@@ -127,23 +127,6 @@ class QwenLlamaIndex(LLM):
         """
         # Convert messages to dictionary format if needed
         validated_messages = []
-        for msg in messages:
-            # If message is already a dictionary, add it directly
-            if isinstance(msg, dict):
-                validated_messages.append(msg)
-            # If message is a ChatMessage instance, convert it to dictionary
-            elif hasattr(msg, "to_dict") and callable(msg.to_dict):
-                validated_messages.append(msg.to_dict())
-            # If message is a BaseModel, use model_dump
-            elif hasattr(msg, "model_dump") and callable(msg.model_dump):
-                validated_messages.append(msg.model_dump())
-            # If message is neither, try to convert using dict()
-            elif hasattr(msg, "__dict__"):
-                validated_messages.append(dict(msg))
-            # If all else fails, raise type error
-            else:
-                raise TypeError(
-                    f"Cannot convert message of type {type(msg)} to dictionary")
         
         for msg in messages:
             if isinstance(msg, dict):
@@ -304,6 +287,7 @@ class QwenLlamaIndex(LLM):
     @llm_chat_callback()
     def stream_chat(self, messages: Sequence[ChatMessage], **kwargs) -> ChatResponse:
         payload = self._get_request_payload(messages, **kwargs)
+        print(payload)
         response = requests.post(
             DEFAULT_API_BASE + EndpointAPI.completions,
             headers=self._get_headers(),
