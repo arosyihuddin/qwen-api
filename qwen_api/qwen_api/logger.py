@@ -7,7 +7,7 @@ from typing_extensions import Literal
 # Inisialisasi colorama untuk support ANSI di Windows
 colorama.init()
 
-logging_level = Literal[
+log_level = Literal[
     "CRITICAL",
     "ERROR",
     "WARNING",
@@ -43,14 +43,14 @@ class ColorFormatter(logging.Formatter):
         return super().format(record)
 
 
-def setup_logger(logging_level: logging_level = "INFO", save_logs: bool = False) -> logging.Logger:
+def setup_logger(log_level: log_level = "INFO", save_logs: bool = False) -> logging.Logger:
     logger = logging.getLogger("qwen_api")
     logger.propagate = False
 
     if logger.handlers:
         logger.handlers.clear()
 
-    logger.setLevel(get_logging_level(logging_level))
+    logger.setLevel(get_logging_level(log_level))
 
     base_format = "[%(levelname)s] %(asctime)s - %(name)s -> %(message)s"
 

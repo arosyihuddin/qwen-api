@@ -19,14 +19,14 @@ class Qwen:
         cookie: Optional[str] = None,
         base_url: str = "https://chat.qwen.ai",
         timeout: int = 600,
-        logging_level: str = "INFO",
+        log_level: str = "INFO",
         save_logs: bool = False,
     ):
         self.chat = Completion(self)
         self.timeout = timeout
         self.auth = AuthManager(token=api_key, cookie=cookie)
         self.logger = setup_logger(
-            logging_level=logging_level, save_logs=save_logs)
+            log_level=log_level, save_logs=save_logs)
         self.base_url = base_url
 
     def _build_headers(self) -> dict:
