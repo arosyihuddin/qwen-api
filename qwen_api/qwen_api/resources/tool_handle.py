@@ -10,8 +10,55 @@ def action_selection(messages, tools, model, temperature, max_tokens, stream, cl
     if messages[-1].role == "tool":
         return False
 
+    # Pre-filter tools based on simple keyword matching to help the AI focus
+    user_content = messages[-1].content.lower()
+    
+    # Simple keyword-based relevance scoring
+    def is_tool_relevant(tool):
+        tool_info = tool if isinstance(tool, dict) else tool.dict()
+        tool_name = tool_info.get('function', {}).get('name', '').lower()
+        tool_desc = tool_info.get('function', {}).get('description', '').lower()
+        
+        # Math-related keywords
+        math_keywords = ['berapa', 'hitung', 'calculate', 'math', '+', '-', '*', '/', '=', 'tambah', 'kurang', 'kali', 'bagi']
+        # HTTP-related keywords  
+        http_keywords = ['request', 'api', 'http', 'get', 'post', 'fetch', 'url', 'endpoint']
+        # Trading-related keywords
+        trading_keywords = ['symbol', 'trading', 'binance', 'pair', 'market', 'crypto', 'bitcoin', 'ethereum']
+        
+        # Check if tool is relevant based on keywords
+        if any(keyword in user_content for keyword in math_keywords) and 'calculator' in tool_name:
+            return True
+        if any(keyword in user_content for keyword in http_keywords) and ('http' in tool_name or 'request' in tool_name):
+            return True
+        if any(keyword in user_content for keyword in trading_keywords) and ('symbol' in tool_name or 'trading' in tool_desc):
+            return True
+        
+        # Also check if keywords appear in tool description
+        if any(keyword in tool_desc for keyword in math_keywords) and any(keyword in user_content for keyword in math_keywords):
+            return True
+        if any(keyword in tool_desc for keyword in http_keywords) and any(keyword in user_content for keyword in http_keywords):
+            return True
+        if any(keyword in tool_desc for keyword in trading_keywords) and any(keyword in user_content for keyword in trading_keywords):
+            return True
+            
+        return False
+    
+    # Filter tools to only relevant ones, but keep all if none are specifically relevant
+    relevant_tools = [tool for tool in tools if is_tool_relevant(tool)]
+    
+    # If no tools are specifically relevant, keep all tools (fallback)
+    # But if we have relevant tools, use only those to avoid confusion
+    tools_to_use = relevant_tools if relevant_tools else tools
+    
+    # If we have relevant tools, likely should use tools
+    if relevant_tools:
+        client.logger.debug(f"Found {len(relevant_tools)} relevant tools out of {len(tools)} total tools")
+        return True
+    
+    # Fallback to original logic with all tools
     choice_messages = [
-        ChatMessage(role="system", content=CHOICE_TOOL_PROMPT.format(list_tools=tools)),
+        ChatMessage(role="system", content=CHOICE_TOOL_PROMPT.format(list_tools=tools_to_use)),
         ChatMessage(role="user", content=messages[-1].content),
     ]
 
@@ -88,8 +135,58 @@ def using_tools(messages, tools, model, temperature, max_tokens, stream, client)
 async def async_action_selection(
     messages, tools, model, temperature, max_tokens, stream, client
 ):
+    if messages[-1].role == "tool":
+        return False
+
+    # Pre-filter tools based on simple keyword matching to help the AI focus
+    user_content = messages[-1].content.lower()
+    
+    # Simple keyword-based relevance scoring
+    def is_tool_relevant(tool):
+        tool_info = tool if isinstance(tool, dict) else tool.dict()
+        tool_name = tool_info.get('function', {}).get('name', '').lower()
+        tool_desc = tool_info.get('function', {}).get('description', '').lower()
+        
+        # Math-related keywords
+        math_keywords = ['berapa', 'hitung', 'calculate', 'math', '+', '-', '*', '/', '=', 'tambah', 'kurang', 'kali', 'bagi']
+        # HTTP-related keywords  
+        http_keywords = ['request', 'api', 'http', 'get', 'post', 'fetch', 'url', 'endpoint']
+        # Trading-related keywords
+        trading_keywords = ['symbol', 'trading', 'binance', 'pair', 'market', 'crypto', 'bitcoin', 'ethereum']
+        
+        # Check if tool is relevant based on keywords
+        if any(keyword in user_content for keyword in math_keywords) and 'calculator' in tool_name:
+            return True
+        if any(keyword in user_content for keyword in http_keywords) and ('http' in tool_name or 'request' in tool_name):
+            return True
+        if any(keyword in user_content for keyword in trading_keywords) and ('symbol' in tool_name or 'trading' in tool_desc):
+            return True
+        
+        # Also check if keywords appear in tool description
+        if any(keyword in tool_desc for keyword in math_keywords) and any(keyword in user_content for keyword in math_keywords):
+            return True
+        if any(keyword in tool_desc for keyword in http_keywords) and any(keyword in user_content for keyword in http_keywords):
+            return True
+        if any(keyword in tool_desc for keyword in trading_keywords) and any(keyword in user_content for keyword in trading_keywords):
+            return True
+            
+        return False
+    
+    # Filter tools to only relevant ones, but keep all if none are specifically relevant
+    relevant_tools = [tool for tool in tools if is_tool_relevant(tool)]
+    
+    # If no tools are specifically relevant, keep all tools (fallback)
+    # But if we have relevant tools, use only those to avoid confusion
+    tools_to_use = relevant_tools if relevant_tools else tools
+    
+    # If we have relevant tools, likely should use tools
+    if relevant_tools:
+        client.logger.debug(f"Found {len(relevant_tools)} relevant tools out of {len(tools)} total tools")
+        return True
+    
+    # Fallback to original logic with all tools
     choice_messages = [
-        ChatMessage(role="system", content=CHOICE_TOOL_PROMPT.format(list_tools=tools)),
+        ChatMessage(role="system", content=CHOICE_TOOL_PROMPT.format(list_tools=tools_to_use)),
         ChatMessage(role="user", content=messages[-1].content),
     ]
 

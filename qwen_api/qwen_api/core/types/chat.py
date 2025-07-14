@@ -66,7 +66,7 @@ class ImageBlock(BaseModel):
 
         return AnyUrl(url=url)
 
-    def validate_image(self) -> 'ImageBlock':
+    def validate_image(self) -> "ImageBlock":
         """
         Validate and process image data.
         """
@@ -126,7 +126,7 @@ class AudioBlock(BaseModel):
             return url
         return AnyUrl(url=url)
 
-    def validate_audio(self) -> 'AudioBlock':
+    def validate_audio(self) -> "AudioBlock":
         """
         Validate and process audio data.
         """
@@ -265,11 +265,13 @@ class Choice(BaseModel):
 
 class ChatResponse(BaseModel):
     """Chat response."""
+
     choices: Choice
 
 
 class Usage(BaseModel):
     """Usage statistics for the chat response."""
+
     input_tokens: Optional[int] = None
     output_tokens: Optional[int] = None
     total_tokens: Optional[int] = None
@@ -285,8 +287,8 @@ class ChatResponseStream(BaseModel):
 
 
 ContentBlock = Annotated[
-    Union[TextBlock, ImageBlock, AudioBlock, DocumentBlock], Field(
-        discriminator="block_type")
+    Union[TextBlock, ImageBlock, AudioBlock, DocumentBlock],
+    Field(discriminator="block_type"),
 ]
 
 
@@ -294,25 +296,29 @@ class ChatMessage(BaseModel):
     role: MessageRole = MessageRole.USER
     web_search: Optional[bool] = False
     web_development: Optional[bool] = Field(
-        default=False, description="If web_development is True, web_search will be disabled automatically.")
+        default=False,
+        description="If web_development is True, web_search will be disabled automatically.",
+    )
     thinking: bool = False
-    output_schema: Optional[Literal['phase']] = None
+    output_schema: Optional[Literal["phase"]] = None
     thinking_budget: Optional[int] = Field(default=None, max=38912)
     blocks: List[ContentBlock] = Field(default_factory=list)
     additional_kwargs: Dict[str, Any] = Field(default_factory=dict)
+    tool_calls: Optional[List[ToolCall]] = None
 
-    def __init__(self,
-                 content: Optional[any | None] = None,
-                 role: MessageRole = MessageRole.USER,
-                 web_search: Optional[bool] = False,
-                 web_development: Optional[bool] = False,
-                 thinking: Optional[bool] = False,
-                 output_schema: Optional[Literal['phase', None]] = None,
-                 thinking_budget: Optional[int] = None,
-                 blocks: Optional[List[ContentBlock]] = Field(
-                     default_factory=list),
-                 **anyData: Any
-                 ) -> None:
+    def __init__(
+        self,
+        content: Optional[any | None] = None,
+        role: MessageRole = MessageRole.USER,
+        web_search: Optional[bool] = False,
+        web_development: Optional[bool] = False,
+        thinking: Optional[bool] = False,
+        output_schema: Optional[Literal["phase", None]] = None,
+        thinking_budget: Optional[int] = None,
+        blocks: Optional[List[ContentBlock]] = Field(default_factory=list),
+        tool_calls: Optional[List[ToolCall]] = None,
+        **anyData: Any,
+    ) -> None:
         # Handle LlamaIndex compatibility
         data = {}
         data["role"] = role
@@ -321,6 +327,7 @@ class ChatMessage(BaseModel):
         data["thinking"] = thinking
         data["output_schema"] = output_schema
         data["thinking_budget"] = thinking_budget
+        data["tool_calls"] = tool_calls
 
         # Handle blocks field for both Qwen and LlamaIndex
         if len(data) > 0:
@@ -352,7 +359,9 @@ class ChatMessage(BaseModel):
                 data["blocks"] = valid_blocks
 
         # Convert additional_kwargs to dict if it's not already
-        if "additional_kwargs" in anyData and not isinstance(anyData["additional_kwargs"], dict):
+        if "additional_kwargs" in anyData and not isinstance(
+            anyData["additional_kwargs"], dict
+        ):
             try:
                 data["additional_kwargs"] = dict(anyData["additional_kwargs"])
             except Exception:

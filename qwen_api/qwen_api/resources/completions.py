@@ -51,13 +51,12 @@ class Completion:
             if stream:
                 # Convert ChatResponse to a generator for streaming compatibility
                 def tool_stream_generator():
-                    from ..core.types.chat import ChoiceStream, Delta, Usage
+                    from ..core.types.chat import ChoiceStream, Delta, Usage, Message
 
                     # Create a streaming response from the tool response
                     delta = Delta(
                         role=tool_response.choices.message.role,
                         content=tool_response.choices.message.content,
-                        function_call=None,
                         extra=tool_response.choices.extra,
                     )
 
@@ -67,6 +66,7 @@ class Completion:
                     stream_message = ChatMessage(
                         role=tool_response.choices.message.role,
                         content=tool_response.choices.message.content or "",
+                        tool_calls=tool_response.choices.message.tool_calls,
                     )
 
                     # Create usage object (can be None for streaming)
@@ -137,7 +137,7 @@ class Completion:
                     self._client,
                 )
 
-            self._client.logger.debug(f"use tools: {use_tools}")
+            self._client.logger.info(f"use tools: {use_tools}")
 
             if use_tools:
                 tool_response = await async_using_tools(
@@ -159,7 +159,6 @@ class Completion:
                         delta = Delta(
                             role=tool_response.choices.message.role,
                             content=tool_response.choices.message.content,
-                            function_call=None,
                             extra=tool_response.choices.extra,
                         )
 
@@ -169,6 +168,7 @@ class Completion:
                         stream_message = ChatMessage(
                             role=tool_response.choices.message.role,
                             content=tool_response.choices.message.content or "",
+                            tool_calls=tool_response.choices.message.tool_calls,
                         )
 
                         # Create usage object (can be None for streaming)

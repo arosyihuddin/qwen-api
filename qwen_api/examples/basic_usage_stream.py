@@ -37,7 +37,7 @@ def main():
                 thinking=False,
                 web_development=True,
                 blocks=[
-                    TextBlock(block_type="text", text="harga btc"),
+                    TextBlock(block_type="text", text="berapa 1+1?"),
                     # ImageBlock(
                     #     block_type="image",
                     #     url=getDataImage.file_url,
@@ -52,7 +52,48 @@ def main():
             messages=messages,
             model="qwen-max-latest",
             stream=True,
+            # tools=[
+            #     {
+            #         "type": "function",
+            #         "function": {
+            #             "name": "calculator",
+            #             "description": "Useful for getting the result of a math expression. The input to this tool should be a valid mathematical expression that could be executed by a simple calculator.",
+            #             "parameters": {
+            #                 "type": "object",
+            #                 "properties": {"input": {"type": "string"}},
+            #                 "additionalProperties": False,
+            #                 "$schema": "http://json-schema.org/draft-07/schema#",
+            #             },
+            #         },
+            #     },
+            # ],
             tools=[
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "Symbols_List",
+                        "description": "Tool ini digunakan untuk mengambil daftar simbol (trading pairs) dari Binance secara real-time melalui endpoint publik exchangeInfo, yang berguna untuk analisis, validasi, atau kebutuhan bot trading.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {"input": {"type": "string"}},
+                            "additionalProperties": False,
+                            "$schema": "http://json-schema.org/draft-07/schema#",
+                        },
+                    },
+                },
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "HTTP_Request",
+                        "description": "Makes an HTTP request and returns the response data",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {},
+                            "additionalProperties": False,
+                            "$schema": "http://json-schema.org/draft-07/schema#",
+                        },
+                    },
+                },
                 {
                     "type": "function",
                     "function": {
