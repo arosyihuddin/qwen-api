@@ -21,32 +21,30 @@ def main():
     5. Processes and prints the streaming response in real-time
     """
     # Initialize the Qwen client with debug logging
-    client = Qwen()
+    client = Qwen(log_level="DEBUG")
 
     try:
         # Upload an image file to the Qwen API
-        getDataImage = client.chat.upload_file(
-            file_path="/home/pstar7/Documents/Personal/Open Source Project/qwen-workspace/qwen_api/examples/tes_image.png"
-        )
+        # getDataImage = client.chat.upload_file(
+        #     file_path="/home/pstar7/Documents/Personal/Open Source Project/qwen-workspace/qwen_api/examples/tes_image.png"
+        # )
 
         # Create the chat message with both text and image content
-        messages = [ChatMessage(
-            role="user",
-            web_search=False,
-            thinking=False,
-            web_development=True,
-            blocks=[
-                TextBlock(
-                    block_type="text",
-                    text="ini gambar apa?"
-                ),
-                ImageBlock(
-                    block_type="image",
-                    url=getDataImage.file_url,
-                    image_mimetype=getDataImage.image_mimetype
-                )
-            ]
-        )
+        messages = [
+            ChatMessage(
+                role="user",
+                web_search=False,
+                thinking=False,
+                web_development=True,
+                blocks=[
+                    TextBlock(block_type="text", text="harga btc"),
+                    # ImageBlock(
+                    #     block_type="image",
+                    #     url=getDataImage.file_url,
+                    #     image_mimetype=getDataImage.image_mimetype
+                    # )
+                ],
+            )
         ]
 
         # Send the request to the Qwen API with streaming enabled
@@ -54,13 +52,29 @@ def main():
             messages=messages,
             model="qwen-max-latest",
             stream=True,
+            tools=[
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "calculator",
+                        "description": "Useful for getting the result of a math expression. The input to this tool should be a valid mathematical expression that could be executed by a simple calculator.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {"input": {"type": "string"}},
+                            "additionalProperties": False,
+                            "$schema": "http://json-schema.org/draft-07/schema#",
+                        },
+                    },
+                },
+            ],
         )
 
         # Process and print the streaming response in real-time
         for chunk in response:
+            print(chunk)
             delta = chunk.choices[0].delta
             # Handle any web search information in the response
-            if 'extra' in delta and 'web_search_info' in delta.extra:
+            if "extra" in delta and "web_search_info" in delta.extra:
                 print("\nHasil pencarian:", delta.extra.web_search_info)
                 print()
 
