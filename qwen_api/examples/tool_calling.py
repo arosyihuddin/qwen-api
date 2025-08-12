@@ -51,11 +51,20 @@ def main():
         response = client.chat.create(
             messages=messages,
             model="qwen3-coder-plus",
+            stream=True,
             tools=tools,
         )
 
-        # Print the response from the API
-        print(response)
+        for chunk in response:
+            print(chunk)
+            delta = chunk.choices[0].delta
+            # Handle any web search information in the response
+            if "extra" in delta and "web_search_info" in delta.extra:
+                print("\nHasil pencarian:", delta.extra.web_search_info)
+                print()
+
+            # Print the content as it arrives
+            print(delta.content, end="", flush=True)
 
     except QwenAPIError as e:
         print(f"Error: {str(e)}")

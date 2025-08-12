@@ -1,64 +1,21 @@
 import requests
+import json
 import aiohttp
 from ..core.types.chat import ChatMessage
 from ..utils.tool_prompt import CHOICE_TOOL_PROMPT, TOOL_PROMPT_SYSTEM, example
 from ..core.types.endpoint_api import EndpointAPI
 from ..core.exceptions import QwenAPIError, RateLimitError
+from ..core.types.chat import MessageRole
 
 
 def action_selection(messages, tools, model, temperature, max_tokens, stream, client):
+    client.logger.info("Starting action selection")
     if messages[-1].role == "tool":
         return False
 
-    # Pre-filter tools based on simple keyword matching to help the AI focus
-    user_content = messages[-1].content.lower()
-    
-    # Simple keyword-based relevance scoring
-    def is_tool_relevant(tool):
-        tool_info = tool if isinstance(tool, dict) else tool.dict()
-        tool_name = tool_info.get('function', {}).get('name', '').lower()
-        tool_desc = tool_info.get('function', {}).get('description', '').lower()
-        
-        # Math-related keywords
-        math_keywords = ['berapa', 'hitung', 'calculate', 'math', '+', '-', '*', '/', '=', 'tambah', 'kurang', 'kali', 'bagi']
-        # HTTP-related keywords  
-        http_keywords = ['request', 'api', 'http', 'get', 'post', 'fetch', 'url', 'endpoint']
-        # Trading-related keywords
-        trading_keywords = ['symbol', 'trading', 'binance', 'pair', 'market', 'crypto', 'bitcoin', 'ethereum']
-        
-        # Check if tool is relevant based on keywords
-        if any(keyword in user_content for keyword in math_keywords) and 'calculator' in tool_name:
-            return True
-        if any(keyword in user_content for keyword in http_keywords) and ('http' in tool_name or 'request' in tool_name):
-            return True
-        if any(keyword in user_content for keyword in trading_keywords) and ('symbol' in tool_name or 'trading' in tool_desc):
-            return True
-        
-        # Also check if keywords appear in tool description
-        if any(keyword in tool_desc for keyword in math_keywords) and any(keyword in user_content for keyword in math_keywords):
-            return True
-        if any(keyword in tool_desc for keyword in http_keywords) and any(keyword in user_content for keyword in http_keywords):
-            return True
-        if any(keyword in tool_desc for keyword in trading_keywords) and any(keyword in user_content for keyword in trading_keywords):
-            return True
-            
-        return False
-    
-    # Filter tools to only relevant ones, but keep all if none are specifically relevant
-    relevant_tools = [tool for tool in tools if is_tool_relevant(tool)]
-    
-    # If no tools are specifically relevant, keep all tools (fallback)
-    # But if we have relevant tools, use only those to avoid confusion
-    tools_to_use = relevant_tools if relevant_tools else tools
-    
-    # If we have relevant tools, likely should use tools
-    if relevant_tools:
-        client.logger.debug(f"Found {len(relevant_tools)} relevant tools out of {len(tools)} total tools")
-        return True
-    
-    # Fallback to original logic with all tools
+        # Fallback to original logic with all tools
     choice_messages = [
-        ChatMessage(role="system", content=CHOICE_TOOL_PROMPT.format(list_tools=tools_to_use)),
+        ChatMessage(role="system", content=CHOICE_TOOL_PROMPT.format(list_tools=tools)),
         ChatMessage(role="user", content=messages[-1].content),
     ]
 
@@ -133,65 +90,27 @@ def using_tools(messages, tools, model, temperature, max_tokens, stream, client)
 
 
 async def async_action_selection(
-    messages, tools, model, temperature, max_tokens, stream, client
+    messages, tools, model, temperature, max_tokens, client
 ):
-    if messages[-1].role == "tool":
-        return False
+    client.logger.info("Starting async action selection")
 
-    # Pre-filter tools based on simple keyword matching to help the AI focus
-    user_content = messages[-1].content.lower()
-    
-    # Simple keyword-based relevance scoring
-    def is_tool_relevant(tool):
-        tool_info = tool if isinstance(tool, dict) else tool.dict()
-        tool_name = tool_info.get('function', {}).get('name', '').lower()
-        tool_desc = tool_info.get('function', {}).get('description', '').lower()
-        
-        # Math-related keywords
-        math_keywords = ['berapa', 'hitung', 'calculate', 'math', '+', '-', '*', '/', '=', 'tambah', 'kurang', 'kali', 'bagi']
-        # HTTP-related keywords  
-        http_keywords = ['request', 'api', 'http', 'get', 'post', 'fetch', 'url', 'endpoint']
-        # Trading-related keywords
-        trading_keywords = ['symbol', 'trading', 'binance', 'pair', 'market', 'crypto', 'bitcoin', 'ethereum']
-        
-        # Check if tool is relevant based on keywords
-        if any(keyword in user_content for keyword in math_keywords) and 'calculator' in tool_name:
-            return True
-        if any(keyword in user_content for keyword in http_keywords) and ('http' in tool_name or 'request' in tool_name):
-            return True
-        if any(keyword in user_content for keyword in trading_keywords) and ('symbol' in tool_name or 'trading' in tool_desc):
-            return True
-        
-        # Also check if keywords appear in tool description
-        if any(keyword in tool_desc for keyword in math_keywords) and any(keyword in user_content for keyword in math_keywords):
-            return True
-        if any(keyword in tool_desc for keyword in http_keywords) and any(keyword in user_content for keyword in http_keywords):
-            return True
-        if any(keyword in tool_desc for keyword in trading_keywords) and any(keyword in user_content for keyword in trading_keywords):
-            return True
-            
-        return False
-    
-    # Filter tools to only relevant ones, but keep all if none are specifically relevant
-    relevant_tools = [tool for tool in tools if is_tool_relevant(tool)]
-    
-    # If no tools are specifically relevant, keep all tools (fallback)
-    # But if we have relevant tools, use only those to avoid confusion
-    tools_to_use = relevant_tools if relevant_tools else tools
-    
-    # If we have relevant tools, likely should use tools
-    if relevant_tools:
-        client.logger.debug(f"Found {len(relevant_tools)} relevant tools out of {len(tools)} total tools")
-        return True
-    
-    # Fallback to original logic with all tools
-    choice_messages = [
-        ChatMessage(role="system", content=CHOICE_TOOL_PROMPT.format(list_tools=tools_to_use)),
-        ChatMessage(role="user", content=messages[-1].content),
+    # history_system_message = (
+    #     messages[0].content if messages[0].role == MessageRole.SYSTEM else None
+    # )
+    system_content = CHOICE_TOOL_PROMPT.format(list_tools=tools)
+    # if history_system_message:
+    #     system_content += f"\n\n###More Instructions\n{history_system_message}\n"
+
+    chat_message = [
+        ChatMessage(role=i.role, content=i.content)
+        for i in messages
+        if i.role != MessageRole.SYSTEM
     ]
+    chat_message.insert(0, ChatMessage(role=MessageRole.SYSTEM, content=system_content))
+    # print(chat_message)
 
     payload = client._build_payload(
-        messages=choice_messages,
+        messages=chat_message,
         model=model,
         temperature=temperature,
         max_tokens=max_tokens,
@@ -217,26 +136,49 @@ async def async_action_selection(
     client.logger.info(f"Response status: {response.status}")
 
     result = await client._process_aresponse(response, session)
+    print(result)
     return True if (result.choices.message.content) == "tools" else False
 
 
-async def async_using_tools(
-    messages, tools, model, temperature, max_tokens, stream, client
-):
-    tool = [tool if isinstance(tool, dict) else tool.dict() for tool in tools]
-    tools_list = "\n".join([str(tool["function"]) for tool in tool])
-    msg_tool = [
-        ChatMessage(
-            role="system",
-            content=TOOL_PROMPT_SYSTEM.format(
-                list_tools=tools_list, output_example=example.model_dump()
-            ),
-        ),
-        ChatMessage(role="user", content=messages[-1].content),
+async def async_using_tools(messages, tools, model, temperature, max_tokens, client):
+    tool_definition = [
+        tool if isinstance(tool, dict) else tool.dict() for tool in tools
+    ]
+    tools_list = json.dumps(tool_definition, indent=2)
+    history_chat_system = (
+        messages[0].content if messages[0].role == MessageRole.SYSTEM else None
+    )
+
+    content_system = TOOL_PROMPT_SYSTEM.replace("{list_tools}", tools_list)
+
+    if history_chat_system:
+        content_system += (
+            f"\n\n<more_instructions>\n{history_chat_system}\n</more_instructions>"
+        )
+
+    chat_message = [
+        ChatMessage(role=i.role, content=i.content)
+        for i in messages
+        if i.role != MessageRole.SYSTEM
     ]
 
+    chat_message.insert(0, ChatMessage(role=MessageRole.SYSTEM, content=content_system))
+
+    # print(content_system)
+    # print(messages[-1].content)
+    # msg_tool = [
+    #     ChatMessage(
+    #         role=MessageRole.SYSTEM,
+    #         content=content_system,
+    #     ),
+    #     ChatMessage(role=MessageRole.USER, content=messages[-1].content),
+    # ]
+
     payload_tools = client._build_payload(
-        messages=msg_tool, model=model, temperature=temperature, max_tokens=max_tokens
+        messages=chat_message,
+        model=model,
+        temperature=temperature,
+        max_tokens=max_tokens,
     )
 
     session = aiohttp.ClientSession()
@@ -259,3 +201,45 @@ async def async_using_tools(
     client.logger.info(f"Response status: {response_tool.status}")
 
     return await client._process_aresponse_tool(response_tool, session)
+
+
+async def async_using_tools_stream(messages, tools, model, temperature, max_tokens, client):
+    """
+    Streaming version of tool handling that converts tool response to streaming format.
+    For now, this is a simplified version that gets the tool response and converts it to streaming.
+    """
+    # First get the tool response using the existing method
+    tool_response = await async_using_tools(
+        messages, tools, model, temperature, max_tokens, client
+    )
+    
+    # Convert the tool response to a streaming format
+    async def tool_stream_generator():
+        from ..core.types.chat import ChoiceStream, Delta, ChatResponseStream, Usage, ChatMessage
+        
+        # Create a streaming response from the tool response
+        delta = Delta(
+            role="assistant",
+            content="",  # Tool calls don't have content, just the function call
+            extra=tool_response.choices.extra,
+        )
+        
+        choice_stream = ChoiceStream(delta=delta)
+        
+        # Create a proper ChatMessage for tool calls
+        message = ChatMessage(
+            role="assistant",
+            content="",
+            tool_calls=tool_response.choices.message.tool_calls
+        )
+        
+        stream_response = ChatResponseStream(
+            choices=[choice_stream],
+            usage=None,
+            message=message
+        )
+        
+        yield stream_response
+    
+    return tool_stream_generator()
+

@@ -5,7 +5,7 @@ This script demonstrates how to use the Qwen API with streaming enabled to handl
 partial results in real-time. It also includes an example of image upload and processing.
 """
 
-from qwen_api import Qwen
+from qwen_api.client import Qwen
 from qwen_api.core.exceptions import QwenAPIError
 from qwen_api.core.types.chat import ChatMessage, TextBlock, ImageBlock
 
@@ -25,9 +25,9 @@ def main():
 
     try:
         # Upload an image file to the Qwen API
-        # getDataImage = client.chat.upload_file(
-        #     file_path="/home/pstar7/Documents/Personal/Open Source Project/qwen-workspace/qwen_api/examples/tes_image.png"
-        # )
+        getDataImage = client.chat.upload_file(
+            file_path="/home/pstar7/Documents/Personal/Open Source Project/qwen-workspace/qwen_api/examples/tes_image.png"
+        )
 
         # Create the chat message with both text and image content
         messages = [
@@ -37,12 +37,12 @@ def main():
                 thinking=False,
                 web_development=True,
                 blocks=[
-                    TextBlock(block_type="text", text="berapa 1+1?"),
-                    # ImageBlock(
-                    #     block_type="image",
-                    #     url=getDataImage.file_url,
-                    #     image_mimetype=getDataImage.image_mimetype
-                    # )
+                    TextBlock(block_type="text", text="ini gambar apa?"),
+                    ImageBlock(
+                        block_type="image",
+                        url=getDataImage.file_url,
+                        image_mimetype=getDataImage.image_mimetype,
+                    ),
                 ],
             )
         ]

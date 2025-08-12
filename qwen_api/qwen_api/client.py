@@ -1,12 +1,21 @@
 import json
-from typing import AsyncGenerator, Generator, List, Optional
+from typing import AsyncGenerator, Generator, List, Optional, Union
 import requests
 import aiohttp
 from sseclient import SSEClient
 from pydantic import ValidationError
 from .core.auth_manager import AuthManager
 from .logger import setup_logger
-from .core.types.chat import ChatResponse, ChatResponseStream, ChatMessage, MessageRole
+from .core.types.chat import (
+    ChatResponse,
+    ChatResponseStream,
+    ChatMessage,
+    MessageRole,
+    ChoiceStream,
+    Extra,
+    Delta,
+    Usage,
+)
 from .resources.completions import Completion
 from .utils.promp_system import WEB_DEVELOPMENT_PROMPT
 from .core.exceptions import QwenAPIError
@@ -147,7 +156,9 @@ class Qwen:
         choice = Choice(message=message, extra=extra)
         return ChatResponse(choices=choice)
 
-    def _process_response_tool(self, response: requests.Response) -> ChatResponse:
+    def _process_response_tool(
+        self, response: requests.Response
+    ) -> ChatResponse | QwenAPIError:
         from .core.types.chat import Choice, Message, Extra
 
         client = SSEClient(response)
@@ -222,9 +233,240 @@ class Qwen:
                 self._active_sessions.remove(session)
             await session.close()
 
+    # async def _process_aresponse_tool_stream(
+    #     self, response: aiohttp.ClientResponse, session: aiohttp.ClientSession
+    # ) -> AsyncGenerator[Union[ChatResponseStream, QwenAPIError], None]:
+    #     """
+    #     Memproses response stream dan menghasilkan ChatResponseStream untuk teks dan tool call.
+    #     """
+    #
+    #     self._active_sessions.append(session)
+    #
+    #     # --- State untuk akumulasi dan deteksi ---
+    #     self.accumulated_content = ""  # Buffer untuk mengakumulasi semua konten
+    #     self.is_potential_tool_call = False  # Flag jika buffer mungkin berisi tool call
+    #     self.is_inside_json_object = False  # Flag jika sedang mengakumulasi objek JSON
+    #     self.brace_count = 0  # Menghitung keseimbangan { }
+    #     self.potential_tool_call_buffer = (
+    #         ""  # Buffer khusus untuk konten yang dianggap tool call
+    #     )
+    #     tool_call_extra: Optional[Extra] = None  # Untuk menyimpan extra jika ada
+    #
+    #     try:
+    #         async for line in response.content:
+    #             if self._is_cancelled:
+    #                 self.logger.info("Async tool response processing cancelled")
+    #                 break
+    #
+    #             if line.startswith(b"data:"):
+    #                 try:
+    #                     data = json.loads(line[5:].decode())
+    #                     delta_data = data["choices"][0]["delta"]
+    #
+    #                     content_delta = delta_data.get("content", "")
+    #
+    #                     if not content_delta:
+    #                         # Tidak ada konten, mungkin hanya delta.role atau delta.extra
+    #                         # Jika ada extra, simpan
+    #                         extra_data = delta_data.get("extra")
+    #                         if extra_data:
+    #                             # Asumsikan Extra bisa dibuat dari dict
+    #                             tool_call_extra = (
+    #                                 Extra(**extra_data)
+    #                                 if isinstance(extra_data, dict)
+    #                                 else Extra()
+    #                             )
+    #                         continue
+    #
+    #                     # --- Akumulasi konten ---
+    #                     self.accumulated_content += content_delta
+    #
+    #                     # --- Deteksi awal potensi tool call ---
+    #                     # Heuristik sederhana: jika 100 karakter pertama (setelah strip)
+    #                     # dimulai dengan '{' dan mengandung '"name"', tandai sebagai potensi tool call.
+    #                     # Ini bisa menghasilkan positif palsu, jadi perlu validasi lebih lanjut.
+    #                     if (
+    #                         not self.is_potential_tool_call
+    #                         and len(self.accumulated_content) > 10
+    #                     ):
+    #                         stripped_start = self.accumulated_content.strip()
+    #                         print(stripped_start)
+    #                         if (
+    #                             stripped_start.startswith("{")
+    #                             and '"name"'
+    #                             in stripped_start[: min(100, len(stripped_start))]
+    #                         ):
+    #                             self.is_potential_tool_call = True
+    #                             self.logger.debug(
+    #                                 "Potential tool call detected based on prefix."
+    #                             )
+    #
+    #                     # --- Jika terdeteksi sebagai potensi tool call, proses lebih lanjut ---
+    #                     if self.is_potential_tool_call:
+    #                         # Tambahkan delta ke buffer khusus tool call
+    #                         self.potential_tool_call_buffer += content_delta
+    #
+    #                         # Hitung brace untuk mendeteksi akhir objek JSON
+    #                         for char in content_delta:
+    #                             if char == "{":
+    #                                 self.brace_count += 1
+    #                                 self.is_inside_json_object = True
+    #                             elif char == "}":
+    #                                 self.brace_count -= 1
+    #                                 # Jika brace seimbang dan kita sedang dalam objek, mungkin JSON selesai
+    #                                 if (
+    #                                     self.brace_count == 0
+    #                                     and self.is_inside_json_object
+    #                                 ):
+    #                                     # --- Coba parse buffer tool call ---
+    #                                     try:
+    #                                         parse_json = json.loads(
+    #                                             self.potential_tool_call_buffer.strip()
+    #                                         )
+    #                                         # Validasi dasar
+    #                                         if (
+    #                                             isinstance(parse_json, dict)
+    #                                             and "name" in parse_json
+    #                                             and "arguments" in parse_json
+    #                                         ):
+    #                                             self.logger.info(
+    #                                                 f"Valid tool call JSON detected and parsed: {parse_json.get('name', 'Unknown')}"
+    #                                             )
+    #                                             # Buat dan yield ChatResponseStream untuk tool call
+    #                                             yield await self._create_tool_call_response(
+    #                                                 parse_json, tool_call_extra
+    #                                             )
+    #
+    #                                             # Reset state untuk tool call berikutnya
+    #                                             self.is_potential_tool_call = False
+    #                                             self.is_inside_json_object = False
+    #                                             self.brace_count = 0
+    #                                             self.potential_tool_call_buffer = ""
+    #                                             tool_call_extra = None  # Reset extra setelah digunakan
+    #                                             # Jangan yield content_delta lagi karena sudah diproses sebagai tool call
+    #                                             content_delta = ""  # Kosongkan agar tidak diyield sebagai teks
+    #                                             break  # Keluar dari loop karakter
+    #                                         else:
+    #                                             # Bukan tool call yang valid, mungkin JSON parsial atau salah format
+    #                                             # Bisa log warning
+    #                                             self.logger.debug(
+    #                                                 "Accumulated buffer is not a valid tool call JSON structure."
+    #                                             )
+    #                                     except json.JSONDecodeError:
+    #                                         # Masih belum lengkap atau ada error, lanjut akumulasi
+    #                                         # self.logger.debug("JSONDecodeError while parsing potential tool call buffer, continuing accumulation.")
+    #                                         pass  # Terus akumulasi
+    #
+    #                     # --- Yield teks biasa jika ada content_delta yang tersisa ---
+    #                     # (Ini akan kosong jika content_delta sudah diproses sebagai tool call)
+    #                     if content_delta:
+    #                         delta = Delta(role="assistant", content=content_delta)
+    #                         choice_stream = ChoiceStream(delta=delta)
+    #                         stream_message = ChatMessage(
+    #                             role="assistant", content=content_delta
+    #                         )
+    #                         stream_response = ChatResponseStream(
+    #                             choices=[choice_stream],
+    #                             usage=Usage(),
+    #                             message=stream_message,
+    #                         )
+    #                         yield stream_response
+    #
+    #                 except json.JSONDecodeError:
+    #                     self.logger.warning(f"Failed to decode JSON line: {line}")
+    #                     continue
+    #
+    #         # --- Di akhir stream, cek jika ada sisa konten yang bukan tool call ---
+    #         # Ini menangani kasus teks penjelasan yang muncul setelah tool call
+    #         if self.accumulated_content and not self.is_potential_tool_call:
+    #             # Ada konten yang terakumulasi tapi tidak terdeteksi sebagai tool call
+    #             # Anggap sebagai teks biasa dan yield
+    #             # Namun, kita perlu hati-hati karena accumulated_content mungkin mencakup
+    #             # teks sebelum tool call juga.
+    #             # Untuk kesederhanaan, kita yield seluruh accumulated_content jika
+    #             # bukan bagian dari tool call yang sedang diakumulasi.
+    #             # Ini bisa menyebabkan duplikasi jika logika sebelumnya tidak sempurna.
+    #             # Logika yang lebih baik akan memisahkan teks yang sudah diyield.
+    #             # Untuk sekarang, kita asumsikan teks yang diyield sebelumnya tidak tumpang tindih.
+    #             remaining_text = self.accumulated_content.strip()
+    #             if remaining_text:
+    #                 delta = Delta(role="assistant", content=remaining_text)
+    #                 choice_stream = ChoiceStream(delta=delta)
+    #                 stream_message = ChatMessage(
+    #                     role="assistant", content=remaining_text
+    #                 )
+    #                 stream_response = ChatResponseStream(
+    #                     choices=[choice_stream], usage=Usage(), message=stream_message
+    #                 )
+    #                 yield stream_response
+    #
+    #     except aiohttp.ClientError as e:
+    #         self.logger.error(f"Client error during streaming: {e}")
+    #         yield QwenAPIError(f"Client error: {e}")
+    #     finally:
+    #         # Bersihkan state
+    #         self.accumulated_content = ""
+    #         self.is_potential_tool_call = False
+    #         self.is_inside_json_object = False
+    #         self.brace_count = 0
+    #         self.potential_tool_call_buffer = ""
+    #         tool_call_extra = None
+    #
+    #         if session in self._active_sessions:
+    #             self._active_sessions.remove(session)
+    #         await session.close()
+    #
+    # async def _create_tool_call_response(
+    #     self, parse_json: dict, tool_call_extra: Optional[Extra]
+    # ) -> ChatResponseStream:
+    #     """Membuat objek ChatResponseStream untuk tool call yang telah di-parsing."""
+    #
+    #     if (
+    #         not isinstance(parse_json, dict)
+    #         or "name" not in parse_json
+    #         or "arguments" not in parse_json
+    #     ):
+    #         error_msg = f"Invalid tool call format received: {parse_json}"
+    #         self.logger.error(error_msg)
+    #         # Return QwenAPIError sebagai ChatResponseStream? Atau raise?
+    #         # Untuk konsistensi streaming, kita buat objek error khusus streaming jika ada
+    #         # atau kembalikan sebagai error dalam stream.
+    #         # Misalnya, buat ChoiceStream khusus error.
+    #         # Untuk sekarang, kita asumsikan QwenAPIError bisa di-yield.
+    #         # Tapi ini mungkin perlu penyesuaian.
+    #         # Mari kita kembalikan sebagai error biasa untuk sekarang.
+    #         return QwenAPIError(error_msg)  # Ini akan di-yield oleh fungsi pemanggil
+    #
+    #     arguments = parse_json["arguments"]
+    #     if isinstance(arguments, str):
+    #         arguments = json.loads(
+    #             arguments
+    #         )  # Jika argumen adalah string JSON, parse lagi
+    #
+    #     function = Function(name=parse_json["name"], arguments=arguments)
+    #     tool_call = ToolCall(function=function)
+    #
+    #     # Buat ChatResponseStream untuk tool call
+    #     message = ChatMessage(
+    #         role="assistant",
+    #         content="",  # Tool call biasanya tidak memiliki content teks di message utama
+    #         tool_calls=[tool_call],
+    #     )
+    #     # Delta untuk tool call: biasanya tidak ada content, tapi ada tool_calls
+    #     # Struktur delta bisa bervariasi tergantung API. Kita sesuaikan dengan yang Anda butuhkan.
+    #     # Misalnya, jika API Anda meletakkan tool_calls di dalam delta:
+    #     delta = Delta(
+    #         role="assistant", content=None, tool_calls=[tool_call]
+    #     )  # Sesuaikan struktur ini
+    #     choice_stream = ChoiceStream(delta=delta, extra=tool_call_extra)
+    #     stream_response = ChatResponseStream(
+    #         choices=[choice_stream], usage=Usage(), message=message  # Atau None
+    #     )
+    #     return stream_response
+
     async def _process_aresponse_tool(
         self, response: aiohttp.ClientResponse, session: aiohttp.ClientSession
-    ) -> ChatResponse:
+    ) -> ChatResponse | QwenAPIError:
         from .core.types.chat import Choice, Message, Extra
 
         # Track this session
@@ -250,14 +492,14 @@ class Qwen:
                     except json.JSONDecodeError:
                         continue
             try:
-                self.logger.debug(f"text: {text}")
+                self.logger.info(f"text: {text}")
                 parse_json = json.loads(text)
                 if isinstance(parse_json["arguments"], str):
                     parse_arguments = json.loads(parse_json["arguments"])
                 else:
                     parse_arguments = parse_json["arguments"]
-                self.logger.debug(f"parse_json: {parse_json}")
-                self.logger.debug(f"arguments: {parse_arguments}")
+                self.logger.info(f"parse_json: {parse_json}")
+                self.logger.info(f"arguments: {parse_arguments}")
                 function = Function(name=parse_json["name"], arguments=parse_arguments)
                 message = Message(
                     role="assistant",
@@ -280,6 +522,39 @@ class Qwen:
                 self._active_sessions.remove(session)
             await session.close()
 
+    async def _process_aresponse_tool_from_json(
+        self, parsed_json: dict
+    ) -> ChatResponse:
+        """Process tool response from already parsed JSON data."""
+        from .core.types.chat import Choice, Message, Extra
+        from .core.types.response.function_tool import Function, ToolCall
+
+        try:
+            self.logger.info(f"Processing tool response from JSON: {parsed_json}")
+
+            if isinstance(parsed_json.get("arguments"), str):
+                parse_arguments = json.loads(parsed_json["arguments"])
+            else:
+                parse_arguments = parsed_json.get("arguments", {})
+
+            function = Function(
+                name=parsed_json.get("name", ""), arguments=parse_arguments
+            )
+
+            message = Message(
+                role="assistant",
+                content="",
+                tool_calls=[ToolCall(function=function)],
+            )
+
+            choice = Choice(message=message, extra=None)
+            return ChatResponse(choices=choice)
+
+        except (json.JSONDecodeError, KeyError) as e:
+            self.logger.error(f"Error processing tool response JSON: {e}")
+            raise QwenAPIError(f"Error processing tool response JSON: {e}")
+
+    #
     def _process_stream(
         self, response: requests.Response
     ) -> Generator[ChatResponseStream, None, None]:
