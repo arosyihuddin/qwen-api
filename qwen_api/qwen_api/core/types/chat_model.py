@@ -1,6 +1,7 @@
 from typing import Literal
 
 ChatModel = Literal[
+    "qwen3-coder-plus",
     "qwen3-235b-a22b",
     "qwen3-30b-a3b",
     "qwen3-32b",
@@ -13,5 +14,5 @@ ChatModel = Literal[
     "qwen2.5-vl-32b-instruct",
     "qwen2.5-14b-instruct-1m",
     "qwen2.5-coder-32b-instruct",
-    "qwen2.5-72b-instruct"
+    "qwen2.5-72b-instruct",
 ]

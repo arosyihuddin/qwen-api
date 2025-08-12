@@ -147,7 +147,9 @@ class Qwen:
         choice = Choice(message=message, extra=extra)
         return ChatResponse(choices=choice)
 
-    def _process_response_tool(self, response: requests.Response) -> ChatResponse:
+    def _process_response_tool(
+        self, response: requests.Response
+    ) -> ChatResponse | QwenAPIError:
         from .core.types.chat import Choice, Message, Extra
 
         client = SSEClient(response)
@@ -224,7 +226,7 @@ class Qwen:
 
     async def _process_aresponse_tool(
         self, response: aiohttp.ClientResponse, session: aiohttp.ClientSession
-    ) -> ChatResponse:
+    ) -> ChatResponse | QwenAPIError:
         from .core.types.chat import Choice, Message, Extra
 
         # Track this session

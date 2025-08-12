@@ -7,10 +7,16 @@ import asyncio
 from oss2.utils import http_date
 from oss2.utils import content_type_by_name
 from oss2 import Auth, Bucket
-from typing import AsyncGenerator, Generator, List, Optional, Union, Iterable
+from typing import AsyncGenerator, Dict, Generator, List, Optional, Union, Iterable
 from ..core.types.upload_file import FileResult
 from ..core.exceptions import QwenAPIError, RateLimitError
-from ..core.types.chat import ChatResponseStream, ChatResponse, ChatMessage
+from ..core.types.chat import (
+    ChatResponseStream,
+    ChatResponse,
+    ChatMessage,
+    Choice,
+    Message,
+)
 from ..core.types.chat_model import ChatModel
 from ..core.types.endpoint_api import EndpointAPI
 from ..core.types.response.tool_param import ToolParam
@@ -33,7 +39,7 @@ class Completion:
         stream: bool = False,
         temperature: float = 0.7,
         max_tokens: Optional[int] = 2048,
-        tools: Optional[Iterable[ToolParam]] = None,
+        tools: Optional[Iterable[ToolParam]] | Optional[List[Dict]] = None,
     ) -> Union[ChatResponse, Generator[ChatResponseStream, None, None]]:
         use_tools = False
         if tools:
@@ -51,7 +57,7 @@ class Completion:
             if stream:
                 # Convert ChatResponse to a generator for streaming compatibility
                 def tool_stream_generator():
-                    from ..core.types.chat import ChoiceStream, Delta, Usage, Message
+                    from ..core.types.chat import ChoiceStream, Delta, Usage
 
                     # Create a streaming response from the tool response
                     delta = Delta(
@@ -139,16 +145,27 @@ class Completion:
 
             self._client.logger.info(f"use tools: {use_tools}")
 
-            if use_tools:
+            if use_tools["use_tools"]:
                 tool_response = await async_using_tools(
                     messages,
+                    use_tools["tool_name"],
                     tools,
                     model,
                     temperature,
                     max_tokens,
-                    stream,
                     self._client,
                 )
+                self._client.logger.info(f"Tools: {tool_response}")
+                if isinstance(tool_response, QwenAPIError):
+                    tool_response = ChatResponse(
+                        choices=Choice(
+                            message=Message(
+                                role="assistant",
+                                content="Error parsing json, please try again.",
+                            ),
+                        )
+                    )
+                    self._client.logger.info(f"Tools: {tool_response}")
 
                 if stream:
                     # Convert ChatResponse to an async generator for streaming compatibility
@@ -180,8 +197,8 @@ class Completion:
                         yield stream_response
 
                     return tool_astream_generator()
-                else:
-                    return tool_response
+                # else:
+                #     return tool_response
 
             payload = self._client._build_payload(
                 messages=messages,

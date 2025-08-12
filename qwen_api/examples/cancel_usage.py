@@ -6,8 +6,6 @@ and close connections properly.
 """
 
 import asyncio
-import threading
-import time
 from qwen_api import Qwen
 from qwen_api.core.exceptions import QwenAPIError
 from qwen_api.core.types.chat import ChatMessage, TextBlock

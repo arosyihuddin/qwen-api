@@ -1,7 +1,10 @@
+import json
+from typing import Dict
 import requests
 import aiohttp
 from ..core.types.chat import ChatMessage
 from ..utils.tool_prompt import CHOICE_TOOL_PROMPT, TOOL_PROMPT_SYSTEM, example
+from ..utils.tool_helper import _safe_parse_choice
 from ..core.types.endpoint_api import EndpointAPI
 from ..core.exceptions import QwenAPIError, RateLimitError
 
@@ -12,53 +15,102 @@ def action_selection(messages, tools, model, temperature, max_tokens, stream, cl
 
     # Pre-filter tools based on simple keyword matching to help the AI focus
     user_content = messages[-1].content.lower()
-    
+
     # Simple keyword-based relevance scoring
     def is_tool_relevant(tool):
         tool_info = tool if isinstance(tool, dict) else tool.dict()
-        tool_name = tool_info.get('function', {}).get('name', '').lower()
-        tool_desc = tool_info.get('function', {}).get('description', '').lower()
-        
+        tool_name = tool_info.get("function", {}).get("name", "").lower()
+        tool_desc = tool_info.get("function", {}).get("description", "").lower()
+
         # Math-related keywords
-        math_keywords = ['berapa', 'hitung', 'calculate', 'math', '+', '-', '*', '/', '=', 'tambah', 'kurang', 'kali', 'bagi']
-        # HTTP-related keywords  
-        http_keywords = ['request', 'api', 'http', 'get', 'post', 'fetch', 'url', 'endpoint']
+        math_keywords = [
+            "berapa",
+            "hitung",
+            "calculate",
+            "math",
+            "+",
+            "-",
+            "*",
+            "/",
+            "=",
+            "tambah",
+            "kurang",
+            "kali",
+            "bagi",
+        ]
+        # HTTP-related keywords
+        http_keywords = [
+            "request",
+            "api",
+            "http",
+            "get",
+            "post",
+            "fetch",
+            "url",
+            "endpoint",
+        ]
         # Trading-related keywords
-        trading_keywords = ['symbol', 'trading', 'binance', 'pair', 'market', 'crypto', 'bitcoin', 'ethereum']
-        
+        trading_keywords = [
+            "symbol",
+            "trading",
+            "binance",
+            "pair",
+            "market",
+            "crypto",
+            "bitcoin",
+            "ethereum",
+        ]
+
         # Check if tool is relevant based on keywords
-        if any(keyword in user_content for keyword in math_keywords) and 'calculator' in tool_name:
+        if (
+            any(keyword in user_content for keyword in math_keywords)
+            and "calculator" in tool_name
+        ):
             return True
-        if any(keyword in user_content for keyword in http_keywords) and ('http' in tool_name or 'request' in tool_name):
+        if any(keyword in user_content for keyword in http_keywords) and (
+            "http" in tool_name or "request" in tool_name
+        ):
             return True
-        if any(keyword in user_content for keyword in trading_keywords) and ('symbol' in tool_name or 'trading' in tool_desc):
+        if any(keyword in user_content for keyword in trading_keywords) and (
+            "symbol" in tool_name or "trading" in tool_desc
+        ):
             return True
-        
+
         # Also check if keywords appear in tool description
-        if any(keyword in tool_desc for keyword in math_keywords) and any(keyword in user_content for keyword in math_keywords):
+        if any(keyword in tool_desc for keyword in math_keywords) and any(
+            keyword in user_content for keyword in math_keywords
+        ):
             return True
-        if any(keyword in tool_desc for keyword in http_keywords) and any(keyword in user_content for keyword in http_keywords):
+        if any(keyword in tool_desc for keyword in http_keywords) and any(
+            keyword in user_content for keyword in http_keywords
+        ):
             return True
-        if any(keyword in tool_desc for keyword in trading_keywords) and any(keyword in user_content for keyword in trading_keywords):
+        if any(keyword in tool_desc for keyword in trading_keywords) and any(
+            keyword in user_content for keyword in trading_keywords
+        ):
             return True
-            
+
         return False
-    
+
     # Filter tools to only relevant ones, but keep all if none are specifically relevant
     relevant_tools = [tool for tool in tools if is_tool_relevant(tool)]
-    
+
     # If no tools are specifically relevant, keep all tools (fallback)
     # But if we have relevant tools, use only those to avoid confusion
     tools_to_use = relevant_tools if relevant_tools else tools
-    
+
     # If we have relevant tools, likely should use tools
     if relevant_tools:
-        client.logger.debug(f"Found {len(relevant_tools)} relevant tools out of {len(tools)} total tools")
+        client.logger.debug(
+            f"Found {len(relevant_tools)} relevant tools out of {len(tools)} total tools"
+        )
         return True
-    
+
     # Fallback to original logic with all tools
     choice_messages = [
-        ChatMessage(role="system", content=CHOICE_TOOL_PROMPT.format(list_tools=tools_to_use)),
+        ChatMessage(
+            role="system", content=CHOICE_TOOL_PROMPT.format(list_tools=tools_to_use)
+        ),
         ChatMessage(role="user", content=messages[-1].content),
     ]
 
@@ -134,61 +186,31 @@ def using_tools(messages, tools, model, temperature, max_tokens, stream, client)
 
 async def async_action_selection(
     messages, tools, model, temperature, max_tokens, stream, client
-):
-    if messages[-1].role == "tool":
-        return False
+) -> Dict[str, bool | str]:
 
-    # Pre-filter tools based on simple keyword matching to help the AI focus
-    user_content = messages[-1].content.lower()
-    
-    # Simple keyword-based relevance scoring
-    def is_tool_relevant(tool):
-        tool_info = tool if isinstance(tool, dict) else tool.dict()
-        tool_name = tool_info.get('function', {}).get('name', '').lower()
-        tool_desc = tool_info.get('function', {}).get('description', '').lower()
-        
-        # Math-related keywords
-        math_keywords = ['berapa', 'hitung', 'calculate', 'math', '+', '-', '*', '/', '=', 'tambah', 'kurang', 'kali', 'bagi']
-        # HTTP-related keywords  
-        http_keywords = ['request', 'api', 'http', 'get', 'post', 'fetch', 'url', 'endpoint']
-        # Trading-related keywords
-        trading_keywords = ['symbol', 'trading', 'binance', 'pair', 'market', 'crypto', 'bitcoin', 'ethereum']
-        
-        # Check if tool is relevant based on keywords
-        if any(keyword in user_content for keyword in math_keywords) and 'calculator' in tool_name:
-            return True
-        if any(keyword in user_content for keyword in http_keywords) and ('http' in tool_name or 'request' in tool_name):
-            return True
-        if any(keyword in user_content for keyword in trading_keywords) and ('symbol' in tool_name or 'trading' in tool_desc):
-            return True
-        
-        # Also check if keywords appear in tool description
-        if any(keyword in tool_desc for keyword in math_keywords) and any(keyword in user_content for keyword in math_keywords):
-            return True
-        if any(keyword in tool_desc for keyword in http_keywords) and any(keyword in user_content for keyword in http_keywords):
-            return True
-        if any(keyword in tool_desc for keyword in trading_keywords) and any(keyword in user_content for keyword in trading_keywords):
-            return True
-            
-        return False
-    
-    # Filter tools to only relevant ones, but keep all if none are specifically relevant
-    relevant_tools = [tool for tool in tools if is_tool_relevant(tool)]
-    
-    # If no tools are specifically relevant, keep all tools (fallback)
-    # But if we have relevant tools, use only those to avoid confusion
-    tools_to_use = relevant_tools if relevant_tools else tools
-    
-    # If we have relevant tools, likely should use tools
-    if relevant_tools:
-        client.logger.debug(f"Found {len(relevant_tools)} relevant tools out of {len(tools)} total tools")
-        return True
-    
-    # Fallback to original logic with all tools
-    choice_messages = [
-        ChatMessage(role="system", content=CHOICE_TOOL_PROMPT.format(list_tools=tools_to_use)),
-        ChatMessage(role="user", content=messages[-1].content),
+    tools_str = json.dumps(tools, ensure_ascii=False, indent=2)
+    system_message = messages[0] if messages else None
+    if system_message and system_message.role == "system":
+        system_content = (
+            CHOICE_TOOL_PROMPT.format(list_tools=tools_str) + "\n"
+            "===== SYSTEM PROMPT =====\n" + system_message.content
+        )
+    else:
+        system_content = CHOICE_TOOL_PROMPT.format(list_tools=tools_str)
+
+    # system_content = CHOICE_TOOL_PROMPT.format(list_tools=tools_str)
+    # choice_messages = [ChatMessage(role="system", content=system_content)] + [
+    #     messages[-1]
+    # ]
+    choice_messages = [ChatMessage(role="system", content=system_content)] + messages[
+        1:
     ]
+    # choice_messages = [
+    #     i if i.role != "tool" else ChatMessage(role="user", content=i.content)
+    #     for i in choice_messages
+    # ]
+
+    print(choice_messages)
 
     payload = client._build_payload(
         messages=choice_messages,
@@ -197,43 +219,177 @@ async def async_action_selection(
         max_tokens=max_tokens,
     )
 
-    session = aiohttp.ClientSession()
-    response = await session.post(
+    response = requests.post(
         url=client.base_url + EndpointAPI.completions,
         headers=client._build_headers(),
         json=payload,
-        timeout=aiohttp.ClientTimeout(total=client.timeout),
+        timeout=client.timeout,
+        stream=stream,
     )
 
     if not response.ok:
-        error_text = await response.text()
-        client.logger.error(f"API Error: {response.status} {error_text}")
-        raise QwenAPIError(f"API Error: {response.status} {error_text}")
+        error_text = response.text()
+        client.logger.error(f"API Error: {response.status_code} {error_text}")
+        raise QwenAPIError(f"API Error: {response.status_code} {error_text}")
 
-    if response.status == 429:
+    if response.status_code == 429:
         client.logger.error("Too many requests")
         raise RateLimitError("Too many requests")
 
-    client.logger.info(f"Response status: {response.status}")
+    client.logger.info(f"Response status: {response.status_code}")
 
-    result = await client._process_aresponse(response, session)
-    return True if (result.choices.message.content) == "tools" else False
+    result = client._process_response(response)
+    try:
+        print(result)
+        if hasattr(result, "choices"):
+            content = result.choices.message.content
+        else:
+            content = result["choices"]["message"]["content"]
+    except Exception as e:
+        client.logger.error(f"Unexpected response shape: {e}; raw={result}")
+        raise QwenAPIError("Unexpected response shape from completions API")
+
+    # parse JSON pilihan
+    try:
+        choice = _safe_parse_choice(content)
+    except Exception as e:
+        # fallback ultra-minimal: kalau model masih ngeluarin 'tools'/'not tools'
+        trimmed = str(content).strip().lower()
+        if trimmed in ("tools", "`tools`"):
+            choice = {"use_tools": True, "tool_name": "none"}
+        elif trimmed in ("not tools", "`not tools`"):
+            choice = {"use_tools": False, "tool_name": "none"}
+        else:
+            client.logger.error(f"Failed to parse choice JSON: {e}; content={content}")
+            # default aman: tidak pakai tools
+            choice = {"use_tools": False, "tool_name": "none"}
+
+    # opsional: validasi tool_name ada di daftar tools saat use_tools True
+    # if choice["use_tools"]:
+    #     names = set()
+    #     # tools bisa berupa dicts atau strings; kita ambil `name` kalau ada
+    #     for t in tools:
+    #         if isinstance(t, dict) and "name" in t:
+    #             names.add(t["name"])
+    #         elif isinstance(t, str):
+    #             names.add(t)
+    #     if choice["tool_name"] not in names:
+    #         # kalau model pilih yang tidak ada, fallback ke "none" (atau kamu bisa force ke tool pertama)
+    #         client.logger.warning(
+    #             f"Chosen tool '{choice['tool_name']}' not in available tools; fallback to none"
+    #         )
+    #         choice = {"use_tools": False, "tool_name": "none"}
+    return choice
+
+
+# async def async_action_selection(
+#     messages, tools, model, temperature, max_tokens, stream, client
+# ):
+#     if messages[-1].role == "tool":
+#         return False
+#
+#     # Pre-filter tools based on simple keyword matching to help the AI focus
+#     user_content = messages[-1].content.lower()
+#
+#     # Simple keyword-based relevance scoring
+#     def is_tool_relevant(tool):
+#         tool_info = tool if isinstance(tool, dict) else tool.dict()
+#         tool_name = tool_info.get('function', {}).get('name', '').lower()
+#         tool_desc = tool_info.get('function', {}).get('description', '').lower()
+#
+#         # Math-related keywords
+#         math_keywords = ['berapa', 'hitung', 'calculate', 'math', '+', '-', '*', '/', '=', 'tambah', 'kurang', 'kali', 'bagi']
+#         # HTTP-related keywords
+#         http_keywords = ['request', 'api', 'http', 'get', 'post', 'fetch', 'url', 'endpoint']
+#         # Trading-related keywords
+#         trading_keywords = ['symbol', 'trading', 'binance', 'pair', 'market', 'crypto', 'bitcoin', 'ethereum']
+#
+#         # Check if tool is relevant based on keywords
+#         if any(keyword in user_content for keyword in math_keywords) and 'calculator' in tool_name:
+#             return True
+#         if any(keyword in user_content for keyword in http_keywords) and ('http' in tool_name or 'request' in tool_name):
+#             return True
+#         if any(keyword in user_content for keyword in trading_keywords) and ('symbol' in tool_name or 'trading' in tool_desc):
+#             return True
+#
+#         # Also check if keywords appear in tool description
+#         if any(keyword in tool_desc for keyword in math_keywords) and any(keyword in user_content for keyword in math_keywords):
+#             return True
+#         if any(keyword in tool_desc for keyword in http_keywords) and any(keyword in user_content for keyword in http_keywords):
+#             return True
+#         if any(keyword in tool_desc for keyword in trading_keywords) and any(keyword in user_content for keyword in trading_keywords):
+#             return True
+#
+#         return False
+#
+#     # Filter tools to only relevant ones, but keep all if none are specifically relevant
+#     relevant_tools = [tool for tool in tools if is_tool_relevant(tool)]
+#
+#     # If no tools are specifically relevant, keep all tools (fallback)
+#     # But if we have relevant tools, use only those to avoid confusion
+#     tools_to_use = relevant_tools if relevant_tools else tools
+#
+#     # If we have relevant tools, likely should use tools
+#     if relevant_tools:
+#         client.logger.debug(f"Found {len(relevant_tools)} relevant tools out of {len(tools)} total tools")
+#         return True
+#
+#     # Fallback to original logic with all tools
+#     choice_messages = [
+#         ChatMessage(role="system", content=CHOICE_TOOL_PROMPT.format(list_tools=tools_to_use)),
+#         ChatMessage(role="user", content=messages[-1].content),
+#     ]
+#
+#     payload = client._build_payload(
+#         messages=choice_messages,
+#         model=model,
+#         temperature=temperature,
+#         max_tokens=max_tokens,
+#     )
+#
+#     session = aiohttp.ClientSession()
+#     response = await session.post(
+#         url=client.base_url + EndpointAPI.completions,
+#         headers=client._build_headers(),
+#         json=payload,
+#         timeout=aiohttp.ClientTimeout(total=client.timeout),
+#     )
+#
+#     if not response.ok:
+#         error_text = await response.text()
+#         client.logger.error(f"API Error: {response.status} {error_text}")
+#         raise QwenAPIError(f"API Error: {response.status} {error_text}")
+#
+#     if response.status == 429:
+#         client.logger.error("Too many requests")
+#         raise RateLimitError("Too many requests")
+#
+#     client.logger.info(f"Response status: {response.status}")
+#
+#     result = await client._process_aresponse(response, session)
+#     return True if (result.choices.message.content) == "tools" else False
+#
 
 
 async def async_using_tools(
-    messages, tools, model, temperature, max_tokens, stream, client
+    messages, tool_name, tools, model, temperature, max_tokens, client
 ):
-    tool = [tool if isinstance(tool, dict) else tool.dict() for tool in tools]
-    tools_list = "\n".join([str(tool["function"]) for tool in tool])
-    msg_tool = [
-        ChatMessage(
-            role="system",
-            content=TOOL_PROMPT_SYSTEM.format(
-                list_tools=tools_list, output_example=example.model_dump()
-            ),
-        ),
-        ChatMessage(role="user", content=messages[-1].content),
-    ]
+    tools_str = json.dumps(tools, ensure_ascii=False, indent=2)
+    system_message = messages[0] if messages else None
+    if system_message and system_message.role == "system":
+        system_content = (
+            system_message.content
+            + "\n\n"
+            + TOOL_PROMPT_SYSTEM.format(list_tools=tools_str)
+        )
+    else:
+        system_content = TOOL_PROMPT_SYSTEM.format(list_tools=tools_str)
+
+    msg_tool = (
+        [ChatMessage(role="system", content=system_content)]
+        + messages[1:]
+        + [ChatMessage(role="user", content=f"Use Tool Name : {tool_name}")]
+    )
 
     payload_tools = client._build_payload(
         messages=msg_tool, model=model, temperature=temperature, max_tokens=max_tokens

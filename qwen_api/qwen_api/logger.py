@@ -43,7 +43,9 @@ class ColorFormatter(logging.Formatter):
         return super().format(record)
 
 
-def setup_logger(log_level: log_level = "INFO", save_logs: bool = False) -> logging.Logger:
+def setup_logger(
+    log_level: log_level | str = "INFO", save_logs: bool = False
+) -> logging.Logger:
     logger = logging.getLogger("qwen_api")
     logger.propagate = False
 
@@ -64,9 +66,7 @@ def setup_logger(log_level: log_level = "INFO", save_logs: bool = False) -> logg
         log_dir = "logs"
         os.makedirs(log_dir, exist_ok=True)
         file_handler = RotatingFileHandler(
-            f"{log_dir}/qwen.log",
-            maxBytes=5*1024*1024,
-            backupCount=3
+            f"{log_dir}/qwen.log", maxBytes=5 * 1024 * 1024, backupCount=3
         )
         file_handler.setFormatter(logging.Formatter(base_format))
         logger.addHandler(file_handler)
