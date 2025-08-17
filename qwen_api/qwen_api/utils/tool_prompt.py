@@ -29,28 +29,28 @@ example = Function(
 # {list_tools}
 # """
 
-TOOL_PROMPT_SYSTEM = """
-You are a helpful AI assistant that must call the tool specified by the user.
+# TOOL_PROMPT_SYSTEM = """
+# You are a helpful AI assistant that must call the tool specified by the user.
 
-The user's input (role: "user") will be the exact function name to call.
-You must respond ONLY with a valid JSON object containing:
-- "name" (string): The function name to call (exactly as provided in the user's input).
-- "arguments" (object): The required arguments for the function, even if empty (use {{}} if none).
+# The user's input (role: "user") will be the exact function name to call.
+# You must respond ONLY with a valid JSON object containing:
+# - "name" (string): The function name to call (exactly as provided in the user's input).
+# - "arguments" (object): The required arguments for the function, even if empty (use {{}} if none).
 
-Strict Formatting Rules:
-- Respond ONLY with a JSON object. NO explanations, NO markdown, NO extra text.
-- Use DOUBLE QUOTES (") for all keys and string values.
-- The response MUST be strictly valid JSON. Do NOT respond with Python objects. Do NOT use single quotes (').
-- Empty arguments → respond with "arguments": {{}}, NOT null or omitted.
-- Do NOT include placeholders or descriptions — only the final JSON object.
+# Strict Formatting Rules:
+# - Respond ONLY with a JSON object. NO explanations, NO markdown, NO extra text.
+# - Use DOUBLE QUOTES (") for all keys and string values.
+# - The response MUST be strictly valid JSON. Do NOT respond with Python objects. Do NOT use single quotes (').
+# - Empty arguments → respond with "arguments": {{}}, NOT null or omitted.
+# - Do NOT include placeholders or descriptions — only the final JSON object.
 
-Example:
-{{"name": "fetch_users", "arguments": {{"user_ids": [123]}}}}
+# Example:
+# {{"name": "fetch_users", "arguments": {{"user_ids": [123]}}}}
 
----
-Available tools:
-{list_tools}
-"""
+# ---
+# Available tools:
+# {list_tools}
+# """
 
 
 # CHOICE_TOOL_PROMPT="""
@@ -111,54 +111,89 @@ Available tools:
 # - No extra fields, no commentary, no markdown.
 # """
 
-CHOICE_TOOL_PROMPT = """
-====== TOOL PLANNER ======
-[PHASE: DECIDE_TOOLS ONLY]
-
-(See SYSTEM PROMPT for more details, but always use only the JSON output format below.)
-
-You MUST follow these rules when deciding whether to use tools:
-
-1. Use a tool ONLY if it is truly needed and can be run NOW with the available inputs.  
-   If the tool is not needed, DO NOT use any tool.
-2. IF a tool has already been used and produced any result (even empty), DO NOT use any tool again — UNLESS the system explicitly instructs to run another tool.
-3. If NO relevant tool is available, respond with:
-    {{
-        "use_tools": true/false,
-        "tool_name": "none" or "<tool_name>"
-    }}
-4. If the user's message explicitly names a tool and it can be run, use it.
-5. If the tool mentioned in the SYSTEM PROMPT is not present in the “Available tools” list, respond with:
-    {{"use_tools": false, "tool_name": "none"}}.
-6. If the tools in the SYSTEM PROMPT differ from the ones in “Available tools”, use the tool that is most relevant to the one mentioned in the SYSTEM PROMPT.
-
-OUTPUT FORMAT (STRICT):
-- JSON ONLY.
-- Keys: "use_tools" (boolean), "tool_name" (string).
-- No extra text, no markdown, no explanation.
-
-Available tools:
-{list_tools}
-====== END ========
-"""
-
 # CHOICE_TOOL_PROMPT = """
-# ---
 # ====== TOOL PLANNER ======
 # [PHASE: DECIDE_TOOLS ONLY]
 #
+# (See SYSTEM PROMPT for more details, but always use only the JSON output format below.)
+#
 # You MUST follow these rules when deciding whether to use tools:
 #
-# Rules:
-# 1) Use a tool ONLY if it is REQUIRED and can run NOW with available inputs.
-# 2) If has_used_tool == true → MUST return {{"use_tools": false, "tool_name":"none"}}.
-# 3) If the user/system policy below mandates a specific tool/sequence, pick the FIRST unmet step that exists in Available tools.
-# 4) If the named tool in the policy is NOT in Available tools, return {{"use_tools": false, "tool_name":"none"}} (controller will map aliases if any).
-# 5) If the user explicitly names an available tool and it can run now, you MAY choose it.
-# 6) If unsure or information is insufficient, choose {{"use_tools": false, "tool_name":"none"}}.
+# 1. Use a tool ONLY if it is truly needed and can be run NOW with the available inputs.
+#    If the tool is not needed, DO NOT use any tool.
+# 2. IF a tool has already been used and produced any result (even empty), DO NOT use any tool again — UNLESS the system explicitly instructs to run another tool.
+# 3. If NO relevant tool is available, respond with:
+#     {{
+#         "use_tools": true/false,
+#         "tool_name": "none" or "<tool_name>"
+#     }}
+# 4. If the user's message explicitly names a tool and it can be run, use it.
+# 5. If the tool mentioned in the SYSTEM PROMPT is not present in the “Available tools” list, respond with:
+#     {{"use_tools": false, "tool_name": "none"}}.
+# 6. If the tools in the SYSTEM PROMPT differ from the ones in “Available tools”, use the tool that is most relevant to the one mentioned in the SYSTEM PROMPT.
 #
+# OUTPUT FORMAT (STRICT):
+# - JSON ONLY.
+# - Keys: "use_tools" (boolean), "tool_name" (string).
+# - No extra text, no markdown, no explanation.
 #
 # Available tools:
 # {list_tools}
-# ====== END =======
+# ====== END ========
 # """
+
+# CHOICE_TOOL_PROMPT = """
+# ====== TOOL PLANNER ======
+# [PHASE: DECIDE_TOOLS ONLY]
+#
+# (See SYSTEM PROMPT for more details, but always use only the JSON output format below.)
+#
+# You MUST follow these rules when deciding whether to use tools:
+#
+# 1. Use a tool ONLY if it is truly needed and can be run NOW with the available inputs.
+#    If the tool is not needed, DO NOT use any tool.
+# 2. If in the conversation history a tool has already been used and produced any result (even empty), DO NOT use any tool again — UNLESS the SYSTEM PROMPT explicitly instructs to run another tool.
+# 3. If NO relevant tool is available, respond with:
+#     {{
+#         "use_tools": true/false,
+#         "tool_name": "none" or "<tool_name>"
+#     }}
+# 4. If the user's message explicitly names a tool and it can be run, use it.
+# 5. If the tool mentioned in the SYSTEM PROMPT is not present in the “Available tools” list, respond with:
+#     {{"use_tools": false, "tool_name": "none"}}.
+# 6. If the tools in the SYSTEM PROMPT differ from the ones in “Available tools”, use the tool that is most relevant to the one mentioned in the SYSTEM PROMPT.
+#
+# OUTPUT FORMAT (STRICT):
+# - JSON ONLY.
+# - Keys: "use_tools" (boolean), "tool_name" (string).
+# - No extra text, no markdown, no explanation.
+#
+# Available tools:
+# {list_tools}
+# """
+
+# CHOICE_TOOL_PROMPT = """
+# ====== TOOL PLANNER ======
+# Determine whether to use a tool by considering both the SYSTEM PROMPT and the conversation history.
+
+# Respond using the following format:
+# {{
+#     "use_tools": true/false,
+#     "tool_name": "none" or "<tool_name>"
+# }}
+
+# Rules:
+# 1. If using a tool, set "use_tools" to true and specify the tool in "tool_name".
+# 2. If not using a tool, set "use_tools" to false and "tool_name" must be "none".
+# 3. Do NOT add any extra text, explanation, or formatting outside the JSON.
+# 4. Always base your decision on both the SYSTEM PROMPT instructions and the conversation history.
+
+# Available tools:
+# {list_tools}
+# """
+
+TOOL_PROMPT_SYSTEM = """
+\n\n# Tools\n\nYou may call one or more functions to assist with the user query.\n\nYou are provided with function signatures within <tools></tools> XML tags:\n<tools>\n
+{list_tools}
+\n</tools>\n\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\n<tool_call>\n{"name": <function-name>, "arguments": <args-json-object>}\n</tool_call>
+"""

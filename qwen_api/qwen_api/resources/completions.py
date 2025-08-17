@@ -7,7 +7,16 @@ import asyncio
 from oss2.utils import http_date
 from oss2.utils import content_type_by_name
 from oss2 import Auth, Bucket
-from typing import AsyncGenerator, Dict, Generator, List, Optional, Union, Iterable
+from typing import (
+    AsyncGenerator,
+    Dict,
+    Generator,
+    List,
+    Optional,
+    Union,
+    Iterable,
+    overload,
+)
 from ..core.types.upload_file import FileResult
 from ..core.exceptions import QwenAPIError, RateLimitError
 from ..core.types.chat import (
@@ -20,17 +29,34 @@ from ..core.types.chat import (
 from ..core.types.chat_model import ChatModel
 from ..core.types.endpoint_api import EndpointAPI
 from ..core.types.response.tool_param import ToolParam
-from .tool_handle import (
-    using_tools,
-    action_selection,
-    async_using_tools,
-    async_action_selection,
-)
+from .tool_handle import using_tools, async_using_tools
 
 
 class Completion:
     def __init__(self, client):
         self._client = client
+
+    @overload
+    def create(
+        self,
+        messages: List[ChatMessage],
+        model: ChatModel = "qwen-max-latest",
+        stream: bool = False,
+        temperature: float = 0.7,
+        max_tokens: Optional[int] = 2048,
+        tools: Optional[Iterable[ToolParam]] | Optional[List[Dict]] = None,
+    ) -> ChatResponse: ...
+
+    @overload
+    def create(
+        self,
+        messages: List[ChatMessage],
+        model: ChatModel = "qwen-max-latest",
+        stream: bool = True,
+        temperature: float = 0.7,
+        max_tokens: Optional[int] = 2048,
+        tools: Optional[Iterable[ToolParam]] | Optional[List[Dict]] = None,
+    ) -> Generator[ChatResponseStream, None, None]: ...
 
     def create(
         self,
@@ -40,16 +66,10 @@ class Completion:
         temperature: float = 0.7,
         max_tokens: Optional[int] = 2048,
         tools: Optional[Iterable[ToolParam]] | Optional[List[Dict]] = None,
-    ) -> Union[ChatResponse, Generator[ChatResponseStream, None, None]]:
-        use_tools = False
+    ) -> Union[ChatResponse, Generator[ChatResponseStream, None, None], None]:
+
         if tools:
-            use_tools = action_selection(
-                messages, tools, model, temperature, max_tokens, stream, self._client
-            )
-
-        self._client.logger.debug(f"use tools: {use_tools}")
-
-        if use_tools:
+            # Directly use tools without selection logic
             tool_response = using_tools(
                 messages, tools, model, temperature, max_tokens, stream, self._client
             )
@@ -120,6 +140,7 @@ class Completion:
         except Exception as e:
             self._client.logger.error(f"Error: {e}")
 
+    @overload
     async def acreate(
         self,
         messages: List[ChatMessage],
@@ -127,45 +148,40 @@ class Completion:
         stream: bool = False,
         temperature: float = 0.7,
         max_tokens: Optional[int] = 2048,
-        tools: Optional[Iterable[ToolParam]] = None,
-    ) -> Union[ChatResponse, AsyncGenerator[ChatResponseStream, None]]:
+        tools: Optional[Iterable[ToolParam]] | List[Dict] = None,
+    ) -> ChatResponse: ...
+
+    @overload
+    async def acreate(
+        self,
+        messages: List[ChatMessage],
+        model: ChatModel = "qwen-max-latest",
+        stream: bool = True,
+        temperature: float = 0.7,
+        max_tokens: Optional[int] = 2048,
+        tools: Optional[Iterable[ToolParam]] | List[Dict] = None,
+    ) -> AsyncGenerator[ChatResponseStream, None]: ...
+
+    async def acreate(
+        self,
+        messages: List[ChatMessage],
+        model: ChatModel = "qwen-max-latest",
+        stream: bool = False,
+        temperature: float = 0.7,
+        max_tokens: Optional[int] = 2048,
+        tools: Optional[Iterable[ToolParam]] | List[Dict] = None,
+    ) -> Union[ChatResponse, AsyncGenerator[ChatResponseStream, None], None]:
         session = None
         try:
-            use_tools = False
             if tools:
-                use_tools = await async_action_selection(
-                    messages,
-                    tools,
-                    model,
-                    temperature,
-                    max_tokens,
-                    stream,
-                    self._client,
-                )
-
-            self._client.logger.info(f"use tools: {use_tools}")
-
-            if use_tools["use_tools"]:
                 tool_response = await async_using_tools(
                     messages,
-                    use_tools["tool_name"],
                     tools,
                     model,
                     temperature,
                     max_tokens,
                     self._client,
                 )
-                self._client.logger.info(f"Tools: {tool_response}")
-                if isinstance(tool_response, QwenAPIError):
-                    tool_response = ChatResponse(
-                        choices=Choice(
-                            message=Message(
-                                role="assistant",
-                                content="Error parsing json, please try again.",
-                            ),
-                        )
-                    )
-                    self._client.logger.info(f"Tools: {tool_response}")
 
                 if stream:
                     # Convert ChatResponse to an async generator for streaming compatibility
@@ -197,44 +213,47 @@ class Completion:
                         yield stream_response
 
                     return tool_astream_generator()
-                # else:
-                #     return tool_response
+                else:
+                    return tool_response
+            else:
 
-            payload = self._client._build_payload(
-                messages=messages,
-                model=model,
-                temperature=temperature,
-                max_tokens=max_tokens,
-            )
+                payload = self._client._build_payload(
+                    messages=messages,
+                    model=model,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                )
 
-            session = aiohttp.ClientSession()
-            # Track this session
-            self._client._active_sessions.append(session)
+                session = aiohttp.ClientSession()
+                # Track this session
+                self._client._active_sessions.append(session)
 
-            response = await session.post(
-                url=self._client.base_url + EndpointAPI.completions,
-                headers=self._client._build_headers(),
-                json=payload,
-                timeout=aiohttp.ClientTimeout(total=self._client.timeout),
-            )
+                response = await session.post(
+                    url=self._client.base_url + EndpointAPI.completions,
+                    headers=self._client._build_headers(),
+                    json=payload,
+                    timeout=aiohttp.ClientTimeout(total=self._client.timeout),
+                )
 
-            if not response.ok:
-                error_text = await response.text()
-                self._client.logger.error(f"API Error: {response.status} {error_text}")
-                raise QwenAPIError(f"API Error: {response.status} {error_text}")
+                if not response.ok:
+                    error_text = await response.text()
+                    self._client.logger.error(
+                        f"API Error: {response.status} {error_text}"
+                    )
+                    raise QwenAPIError(f"API Error: {response.status} {error_text}")
 
-            if response.status == 429:
-                self._client.logger.error("Too many requests")
-                raise RateLimitError("Too many requests")
+                if response.status == 429:
+                    self._client.logger.error("Too many requests")
+                    raise RateLimitError("Too many requests")
 
-            self._client.logger.info(f"Response status: {response.status}")
+                self._client.logger.info(f"Response status: {response.status}")
 
-            if stream:
-                return self._client._process_astream(response, session)
-            try:
-                return await self._client._process_aresponse(response, session)
-            except Exception as e:
-                self._client.logger.error(f"Error: {e}")
+                if stream:
+                    return self._client._process_astream(response, session)
+                try:
+                    return await self._client._process_aresponse(response, session)
+                except Exception as e:
+                    self._client.logger.error(f"Error: {e}")
 
         except Exception as e:
             self._client.logger.error(f"Error in acreate: {e}")

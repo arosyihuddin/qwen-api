@@ -25,32 +25,34 @@ async def main():
 
     try:
         # Create the chat message
-        messages = [ChatMessage(
-            role="user",
-            content="berapa 1+1?",
-            web_search=True,
-            thinking=False,
-        )]
+        messages = [
+            ChatMessage(
+                role="user",
+                content="berapa 1+1?",
+                web_search=False,
+                thinking=False,
+            )
+        ]
 
         # Send the request to the Qwen API using asynchronous methods
         response = await client.chat.acreate(
             messages=messages,
             model="qwen-max-latest",
             tools=[
-                {'type': 'function', 
-                 'function': {
-                     'name': 'calculator', 
-                     'description': 'Useful for getting the result of a math expression. The input to this tool should be a valid mathematical expression that could be executed by a simple calculator.', 
-                     'parameters': {
-                         'type': 'object', 
-                         'properties': {
-                             'input': {'type': 'string'}}, 
-                         'additionalProperties': False, 
-                         '$schema': 'http://json-schema.org/draft-07/schema#'
-                         }
-                     }
-                 }
-            ]
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "calculator",
+                        "description": "Useful for getting the result of a math expression. The input to this tool should be a valid mathematical expression that could be executed by a simple calculator.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {"input": {"type": "string"}},
+                            "additionalProperties": False,
+                            "$schema": "http://json-schema.org/draft-07/schema#",
+                        },
+                    },
+                }
+            ],
         )
 
         # Print the response from the API
@@ -58,6 +60,7 @@ async def main():
 
     except QwenAPIError as e:
         print(f"\nError: {str(e)}")
+
 
 if __name__ == "__main__":
     # Run the async main function
