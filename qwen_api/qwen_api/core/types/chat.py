@@ -1,5 +1,4 @@
 from __future__ import annotations
-from typing import Optional, Dict, Any, List
 from pydantic import BaseModel, Field
 
 import base64
@@ -15,12 +14,12 @@ from typing import (
     Optional,
     Self,
     Union,
+    Dict,
+    List,
 )
 
 from pydantic import (
     AnyUrl,
-    BaseModel,
-    Field,
     FilePath,
     field_validator,
     model_validator,
@@ -245,6 +244,7 @@ class Delta(BaseModel):
     content: str
     name: Optional[str] = ""
     function_call: Optional[FunctionCall] = None
+    tool_calls: Optional[List[ToolCall]] = None
     extra: Optional[Extra] = None
 
 
@@ -293,7 +293,7 @@ ContentBlock = Annotated[
 
 
 class ChatMessage(BaseModel):
-    role: MessageRole = MessageRole.USER
+    role: MessageRole | str = MessageRole.USER
     web_search: Optional[bool] = False
     web_development: Optional[bool] = Field(
         default=False,
@@ -302,20 +302,20 @@ class ChatMessage(BaseModel):
     thinking: bool = False
     output_schema: Optional[Literal["phase"]] = None
     thinking_budget: Optional[int] = Field(default=None, max=38912)
-    blocks: List[ContentBlock] = Field(default_factory=list)
-    additional_kwargs: Dict[str, Any] = Field(default_factory=dict)
+    blocks: List[ContentBlock] = []
+    additional_kwargs: Dict[str, Any] = {}
     tool_calls: Optional[List[ToolCall]] = None
 
     def __init__(
         self,
-        content: Optional[any | None] = None,
-        role: MessageRole = MessageRole.USER,
+        content: Optional[Any] = None,
+        role: MessageRole | str = MessageRole.USER,
         web_search: Optional[bool] = False,
         web_development: Optional[bool] = False,
         thinking: Optional[bool] = False,
         output_schema: Optional[Literal["phase", None]] = None,
         thinking_budget: Optional[int] = None,
-        blocks: Optional[List[ContentBlock]] = Field(default_factory=list),
+        blocks: Optional[List[ContentBlock]] = [],
         tool_calls: Optional[List[ToolCall]] = None,
         **anyData: Any,
     ) -> None:
@@ -396,4 +396,8 @@ class ChatMessage(BaseModel):
         return content or None
 
     def __str__(self) -> str:
-        return f"{self.role.value}: {self.content}"
+        if isinstance(self.role, str):
+            role_str = self.role
+        else:
+            role_str = self.role.value
+        return f"{role_str}: {self.content}"

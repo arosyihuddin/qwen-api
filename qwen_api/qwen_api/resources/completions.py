@@ -7,24 +7,57 @@ import asyncio
 from oss2.utils import http_date
 from oss2.utils import content_type_by_name
 from oss2 import Auth, Bucket
-from typing import AsyncGenerator, Generator, List, Optional, Union, Iterable
+from typing import (
+    AsyncGenerator,
+    Dict,
+    Generator,
+    List,
+    Optional,
+    Union,
+    Iterable,
+    overload,
+    Literal,
+)
 from ..core.types.upload_file import FileResult
 from ..core.exceptions import QwenAPIError, RateLimitError
-from ..core.types.chat import ChatResponseStream, ChatResponse, ChatMessage
+from ..core.types.chat import (
+    ChatResponseStream,
+    ChatResponse,
+    ChatMessage,
+    Choice,
+    Message,
+)
 from ..core.types.chat_model import ChatModel
 from ..core.types.endpoint_api import EndpointAPI
 from ..core.types.response.tool_param import ToolParam
-from .tool_handle import (
-    using_tools,
-    action_selection,
-    async_using_tools,
-    async_action_selection,
-)
+from .tool_handle import using_tools, async_using_tools
 
 
 class Completion:
     def __init__(self, client):
         self._client = client
+
+    @overload
+    def create(
+        self,
+        messages: List[ChatMessage],
+        model: ChatModel = "qwen-max-latest",
+        stream: Literal[False] = False,
+        temperature: float = 0.7,
+        max_tokens: Optional[int] = 2048,
+        tools: Optional[Iterable[ToolParam]] | Optional[List[Dict]] = None,
+    ) -> ChatResponse: ...
+
+    @overload
+    def create(
+        self,
+        messages: List[ChatMessage],
+        model: ChatModel = "qwen-max-latest",
+        stream: Literal[True] = True,
+        temperature: float = 0.7,
+        max_tokens: Optional[int] = 2048,
+        tools: Optional[Iterable[ToolParam]] | Optional[List[Dict]] = None,
+    ) -> Generator[ChatResponseStream, None, None]: ...
 
     def create(
         self,
@@ -33,17 +66,11 @@ class Completion:
         stream: bool = False,
         temperature: float = 0.7,
         max_tokens: Optional[int] = 2048,
-        tools: Optional[Iterable[ToolParam]] = None,
-    ) -> Union[ChatResponse, Generator[ChatResponseStream, None, None]]:
-        use_tools = False
+        tools: Optional[Iterable[ToolParam]] | Optional[List[Dict]] = None,
+    ) -> Union[ChatResponse, Generator[ChatResponseStream, None, None], None]:
+
         if tools:
-            use_tools = action_selection(
-                messages, tools, model, temperature, max_tokens, stream, self._client
-            )
-
-        self._client.logger.debug(f"use tools: {use_tools}")
-
-        if use_tools:
+            # Directly use tools without selection logic
             tool_response = using_tools(
                 messages, tools, model, temperature, max_tokens, stream, self._client
             )
@@ -51,7 +78,7 @@ class Completion:
             if stream:
                 # Convert ChatResponse to a generator for streaming compatibility
                 def tool_stream_generator():
-                    from ..core.types.chat import ChoiceStream, Delta, Usage, Message
+                    from ..core.types.chat import ChoiceStream, Delta, Usage
 
                     # Create a streaming response from the tool response
                     delta = Delta(
@@ -114,6 +141,28 @@ class Completion:
         except Exception as e:
             self._client.logger.error(f"Error: {e}")
 
+    @overload
+    async def acreate(
+        self,
+        messages: List[ChatMessage],
+        model: ChatModel = "qwen-max-latest",
+        stream: Literal[False] = False,
+        temperature: float = 0.7,
+        max_tokens: Optional[int] = 2048,
+        tools: Optional[Iterable[ToolParam]] | List[Dict] = None,
+    ) -> ChatResponse: ...
+
+    @overload
+    async def acreate(
+        self,
+        messages: List[ChatMessage],
+        model: ChatModel = "qwen-max-latest",
+        stream: Literal[True] = True,
+        temperature: float = 0.7,
+        max_tokens: Optional[int] = 2048,
+        tools: Optional[Iterable[ToolParam]] | List[Dict] = None,
+    ) -> AsyncGenerator[ChatResponseStream, None]: ...
+
     async def acreate(
         self,
         messages: List[ChatMessage],
@@ -121,32 +170,17 @@ class Completion:
         stream: bool = False,
         temperature: float = 0.7,
         max_tokens: Optional[int] = 2048,
-        tools: Optional[Iterable[ToolParam]] = None,
-    ) -> Union[ChatResponse, AsyncGenerator[ChatResponseStream, None]]:
+        tools: Optional[Iterable[ToolParam]] | List[Dict] = None,
+    ) -> Union[ChatResponse, AsyncGenerator[ChatResponseStream, None], None]:
         session = None
         try:
-            use_tools = False
             if tools:
-                use_tools = await async_action_selection(
-                    messages,
-                    tools,
-                    model,
-                    temperature,
-                    max_tokens,
-                    stream,
-                    self._client,
-                )
-
-            self._client.logger.info(f"use tools: {use_tools}")
-
-            if use_tools:
                 tool_response = await async_using_tools(
                     messages,
                     tools,
                     model,
                     temperature,
                     max_tokens,
-                    stream,
                     self._client,
                 )
 
@@ -182,42 +216,45 @@ class Completion:
                     return tool_astream_generator()
                 else:
                     return tool_response
+            else:
 
-            payload = self._client._build_payload(
-                messages=messages,
-                model=model,
-                temperature=temperature,
-                max_tokens=max_tokens,
-            )
+                payload = self._client._build_payload(
+                    messages=messages,
+                    model=model,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                )
 
-            session = aiohttp.ClientSession()
-            # Track this session
-            self._client._active_sessions.append(session)
+                session = aiohttp.ClientSession()
+                # Track this session
+                self._client._active_sessions.append(session)
 
-            response = await session.post(
-                url=self._client.base_url + EndpointAPI.completions,
-                headers=self._client._build_headers(),
-                json=payload,
-                timeout=aiohttp.ClientTimeout(total=self._client.timeout),
-            )
+                response = await session.post(
+                    url=self._client.base_url + EndpointAPI.completions,
+                    headers=self._client._build_headers(),
+                    json=payload,
+                    timeout=aiohttp.ClientTimeout(total=self._client.timeout),
+                )
 
-            if not response.ok:
-                error_text = await response.text()
-                self._client.logger.error(f"API Error: {response.status} {error_text}")
-                raise QwenAPIError(f"API Error: {response.status} {error_text}")
+                if not response.ok:
+                    error_text = await response.text()
+                    self._client.logger.error(
+                        f"API Error: {response.status} {error_text}"
+                    )
+                    raise QwenAPIError(f"API Error: {response.status} {error_text}")
 
-            if response.status == 429:
-                self._client.logger.error("Too many requests")
-                raise RateLimitError("Too many requests")
+                if response.status == 429:
+                    self._client.logger.error("Too many requests")
+                    raise RateLimitError("Too many requests")
 
-            self._client.logger.info(f"Response status: {response.status}")
+                self._client.logger.info(f"Response status: {response.status}")
 
-            if stream:
-                return self._client._process_astream(response, session)
-            try:
-                return await self._client._process_aresponse(response, session)
-            except Exception as e:
-                self._client.logger.error(f"Error: {e}")
+                if stream:
+                    return self._client._process_astream(response, session)
+                try:
+                    return await self._client._process_aresponse(response, session)
+                except Exception as e:
+                    self._client.logger.error(f"Error: {e}")
 
         except Exception as e:
             self._client.logger.error(f"Error in acreate: {e}")
@@ -228,7 +265,9 @@ class Completion:
                 await session.close()
             raise
 
-    def upload_file(self, file_path: str = None, base64_data: str = None):
+    def upload_file(
+        self, file_path: Optional[str] = None, base64_data: Optional[str] = None
+    ):
         if not file_path and not base64_data:
             raise QwenAPIError("Either file_path or base64_data must be provided")
 
@@ -279,7 +318,7 @@ class Completion:
             # Get file size
             file_size = len(file_content)
 
-        elif os.path.isfile(file_path):
+        elif file_path and os.path.isfile(file_path):
             # Read file content
             with open(file_path, "rb") as file:
                 file_content = file.read()
@@ -291,7 +330,7 @@ class Completion:
             raise QwenAPIError(f"File {file_path} does not exist")
 
         detected_mime_type = None
-        if not base64_data:
+        if not base64_data and file_path:
             detected_mime_type, _ = mimetypes.guess_type(file_path)
 
         mime_type = detected_mime_type
@@ -317,7 +356,7 @@ class Completion:
             try:
                 error_text = response.json()
             except Exception:
-                error_text = response.text()
+                error_text = response.text
             self._client.logger.error(f"API Error: {response.status_code} {error_text}")
             raise QwenAPIError(f"API Error: {response.status_code} {error_text}")
 
@@ -328,7 +367,10 @@ class Completion:
         try:
             response_data = response.json()
         except Exception:
-            response_data = response.text()
+            response_data = response.text
+
+        if not isinstance(response_data, dict):
+            raise QwenAPIError(f"Invalid response format: {response_data}")
 
         # Extract credentials correctly
         access_key_id = response_data["access_key_id"]
@@ -389,7 +431,7 @@ class Completion:
 
         # Check if the upload was successful
         if oss_response.status != 200 and oss_response.status != 203:
-            error_text = oss_response.read()
+            error_text = str(oss_response)
             self._client.logger.error(f"API Error: {oss_response.status} {error_text}")
             raise QwenAPIError(f"API Error: {oss_response.status} {error_text}")
 
@@ -404,7 +446,9 @@ class Completion:
         }
         return FileResult(**result)
 
-    async def async_upload_file(self, file_path: str = None, base64_data: str = None):
+    async def async_upload_file(
+        self, file_path: Optional[str] = None, base64_data: Optional[str] = None
+    ):
         if not file_path and not base64_data:
             raise QwenAPIError("Either file_path or base64_data must be provided")
 
@@ -455,7 +499,7 @@ class Completion:
             # Get file size
             file_size = len(file_content)
 
-        elif os.path.isfile(file_path):
+        elif file_path and os.path.isfile(file_path):
             # Read file content
             with open(file_path, "rb") as file:
                 file_content = file.read()
@@ -464,7 +508,7 @@ class Completion:
             filename = os.path.basename(file_path)
 
         detected_mime_type = None
-        if not base64_data:
+        if not base64_data and file_path:
             detected_mime_type, _ = mimetypes.guess_type(file_path)
 
         mime_type = detected_mime_type
@@ -568,7 +612,7 @@ class Completion:
 
                 # Check if the upload was successful
                 if oss_response.status != 200 and oss_response.status != 203:
-                    error_text = oss_response.read()
+                    error_text = str(oss_response)
                     self._client.logger.error(
                         f"API Error: {oss_response.status} {error_text}"
                     )
