@@ -1,9 +1,12 @@
 from typing import Literal
 
 ChatModel = Literal[
-    "qwen3-coder-plus",
+    "qwen3-max-preview",
+    "qwen-plus-2025-09-11",
     "qwen3-235b-a22b",
+    "qwen3-coder-plus",
     "qwen3-30b-a3b",
+    "qwen3-coder-30b-a3b-instruct",
     "qwen3-32b",
     "qwen-max-latest",
     "qwen-plus-2025-01-25",

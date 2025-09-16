@@ -16,6 +16,7 @@ from typing import (
     Union,
     Iterable,
     overload,
+    Literal,
 )
 from ..core.types.upload_file import FileResult
 from ..core.exceptions import QwenAPIError, RateLimitError
@@ -41,7 +42,7 @@ class Completion:
         self,
         messages: List[ChatMessage],
         model: ChatModel = "qwen-max-latest",
-        stream: bool = False,
+        stream: Literal[False] = False,
         temperature: float = 0.7,
         max_tokens: Optional[int] = 2048,
         tools: Optional[Iterable[ToolParam]] | Optional[List[Dict]] = None,
@@ -52,7 +53,7 @@ class Completion:
         self,
         messages: List[ChatMessage],
         model: ChatModel = "qwen-max-latest",
-        stream: bool = True,
+        stream: Literal[True] = True,
         temperature: float = 0.7,
         max_tokens: Optional[int] = 2048,
         tools: Optional[Iterable[ToolParam]] | Optional[List[Dict]] = None,
@@ -145,7 +146,7 @@ class Completion:
         self,
         messages: List[ChatMessage],
         model: ChatModel = "qwen-max-latest",
-        stream: bool = False,
+        stream: Literal[False] = False,
         temperature: float = 0.7,
         max_tokens: Optional[int] = 2048,
         tools: Optional[Iterable[ToolParam]] | List[Dict] = None,
@@ -156,7 +157,7 @@ class Completion:
         self,
         messages: List[ChatMessage],
         model: ChatModel = "qwen-max-latest",
-        stream: bool = True,
+        stream: Literal[True] = True,
         temperature: float = 0.7,
         max_tokens: Optional[int] = 2048,
         tools: Optional[Iterable[ToolParam]] | List[Dict] = None,
@@ -264,7 +265,9 @@ class Completion:
                 await session.close()
             raise
 
-    def upload_file(self, file_path: str = None, base64_data: str = None):
+    def upload_file(
+        self, file_path: Optional[str] = None, base64_data: Optional[str] = None
+    ):
         if not file_path and not base64_data:
             raise QwenAPIError("Either file_path or base64_data must be provided")
 
@@ -315,7 +318,7 @@ class Completion:
             # Get file size
             file_size = len(file_content)
 
-        elif os.path.isfile(file_path):
+        elif file_path and os.path.isfile(file_path):
             # Read file content
             with open(file_path, "rb") as file:
                 file_content = file.read()
@@ -327,7 +330,7 @@ class Completion:
             raise QwenAPIError(f"File {file_path} does not exist")
 
         detected_mime_type = None
-        if not base64_data:
+        if not base64_data and file_path:
             detected_mime_type, _ = mimetypes.guess_type(file_path)
 
         mime_type = detected_mime_type
@@ -353,7 +356,7 @@ class Completion:
             try:
                 error_text = response.json()
             except Exception:
-                error_text = response.text()
+                error_text = response.text
             self._client.logger.error(f"API Error: {response.status_code} {error_text}")
             raise QwenAPIError(f"API Error: {response.status_code} {error_text}")
 
@@ -364,7 +367,10 @@ class Completion:
         try:
             response_data = response.json()
         except Exception:
-            response_data = response.text()
+            response_data = response.text
+
+        if not isinstance(response_data, dict):
+            raise QwenAPIError(f"Invalid response format: {response_data}")
 
         # Extract credentials correctly
         access_key_id = response_data["access_key_id"]
@@ -425,7 +431,7 @@ class Completion:
 
         # Check if the upload was successful
         if oss_response.status != 200 and oss_response.status != 203:
-            error_text = oss_response.read()
+            error_text = str(oss_response)
             self._client.logger.error(f"API Error: {oss_response.status} {error_text}")
             raise QwenAPIError(f"API Error: {oss_response.status} {error_text}")
 
@@ -440,7 +446,9 @@ class Completion:
         }
         return FileResult(**result)
 
-    async def async_upload_file(self, file_path: str = None, base64_data: str = None):
+    async def async_upload_file(
+        self, file_path: Optional[str] = None, base64_data: Optional[str] = None
+    ):
         if not file_path and not base64_data:
             raise QwenAPIError("Either file_path or base64_data must be provided")
 
@@ -491,7 +499,7 @@ class Completion:
             # Get file size
             file_size = len(file_content)
 
-        elif os.path.isfile(file_path):
+        elif file_path and os.path.isfile(file_path):
             # Read file content
             with open(file_path, "rb") as file:
                 file_content = file.read()
@@ -500,7 +508,7 @@ class Completion:
             filename = os.path.basename(file_path)
 
         detected_mime_type = None
-        if not base64_data:
+        if not base64_data and file_path:
             detected_mime_type, _ = mimetypes.guess_type(file_path)
 
         mime_type = detected_mime_type
@@ -604,7 +612,7 @@ class Completion:
 
                 # Check if the upload was successful
                 if oss_response.status != 200 and oss_response.status != 203:
-                    error_text = oss_response.read()
+                    error_text = str(oss_response)
                     self._client.logger.error(
                         f"API Error: {oss_response.status} {error_text}"
                     )

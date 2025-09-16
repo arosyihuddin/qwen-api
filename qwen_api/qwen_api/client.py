@@ -1,5 +1,5 @@
 import json
-from typing import AsyncGenerator, Generator, List, Optional
+from typing import AsyncGenerator, Generator, List, Optional, cast, Any
 import requests
 import aiohttp
 from sseclient import SSEClient
@@ -62,6 +62,7 @@ class Qwen:
             if validated_msg.role == "system":
                 if (
                     validated_msg.web_development
+                    and validated_msg.content
                     and WEB_DEVELOPMENT_PROMPT not in validated_msg.content
                 ):
                     updated_content = (
@@ -129,7 +130,7 @@ class Qwen:
     def _process_response(self, response: requests.Response) -> ChatResponse:
         from .core.types.chat import Choice, Message, Extra
 
-        client = SSEClient(response)
+        client = SSEClient(cast(Any, response))
         extra = None
         text = ""
         for event in client.events():
@@ -152,7 +153,7 @@ class Qwen:
     ) -> ChatResponse | QwenAPIError:
         from .core.types.chat import Choice, Message, Extra
 
-        client = SSEClient(response)
+        client = SSEClient(cast(Any, response))
         extra = None
         text = ""
         for event in client.events():
@@ -285,7 +286,7 @@ class Qwen:
     def _process_stream(
         self, response: requests.Response
     ) -> Generator[ChatResponseStream, None, None]:
-        client = SSEClient(response)
+        client = SSEClient(cast(Any, response))
         content = ""
         for event in client.events():
             # Check if cancelled

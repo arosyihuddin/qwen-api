@@ -19,12 +19,3 @@ class AuthManager:
         if not self._cookie:
             raise AuthError("Cookie not found in .env")
         return self._cookie
-
-    def get_bx_ua(self) -> str:
-        if not self._bx_ua:
-            raise AuthError("BX-UA not found in .env")
-        return self._bx_ua
-
-    def refresh(self):
-        """Untuk implementasi token refresh jika diperlukan"""
-        pass
